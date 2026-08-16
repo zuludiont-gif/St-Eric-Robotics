@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>St Eric Robotics Club — Learning Robotics, One Project at a Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ---------- loader ---------- */
+#loader{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .8s ease, visibility .8s ease;}
+#loader.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+.loader-inner{position:relative;z-index:2;text-align:center;padding:0 1.5rem;}
+.loader-eyebrow{font-family:var(--font-head);font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--primary);font-weight:700;margin-bottom:1.1rem;opacity:0;animation:fadeUp .7s ease forwards .1s;}
+.loader-title{font-family:var(--font-head);font-weight:800;font-size:clamp(1.9rem,6vw,3.6rem);line-height:1.15;letter-spacing:-.01em;}
+.loader-title span{display:inline-block;opacity:0;transform:translateY(18px);animation:fadeUp .7s cubic-bezier(.16,.8,.3,1) forwards;}
+.loader-title .glow{background:linear-gradient(120deg,var(--primary),var(--secondary));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 40px rgba(6,182,212,.35);}
+@keyframes fadeUp{to{opacity:1;transform:translateY(0);}}
+.loader-sub{margin-top:1rem;color:var(--text-dim);font-size:.92rem;opacity:0;animation:fadeUp .7s ease forwards .9s;}
+.loader-bar{width:220px;height:2px;margin:2.4rem auto 0;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;opacity:0;animation:fadeUp .6s ease forwards 1.05s;}
+.loader-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--secondary));animation:load 1.6s ease-in-out forwards .3s;}
+@keyframes load{to{width:100%;}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8rem 6vw 4rem;}
+.hero-content{position:relative;z-index:2;max-width:820px;}
+.hero .eyebrow{justify-content:center;margin-bottom:1.3rem;}
+.hero h1{font-family:var(--font-head);font-weight:800;font-size:clamp(2.3rem,6.4vw,4.2rem);line-height:1.1;letter-spacing:-.02em;}
+.hero h1 .accent{background:linear-gradient(120deg,var(--primary),var(--secondary));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.hero p.lead{margin:1.5rem auto 0;max-width:560px;color:var(--text-dim);font-size:1.08rem;}
+.hero-actions{display:flex;gap:1rem;justify-content:center;margin-top:2.4rem;flex-wrap:wrap;}
+.hero-scroll{position:absolute;bottom:2.4rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--text-faint);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;font-family:var(--font-head);z-index:2;}
+.hero-scroll .line{width:1px;height:34px;background:linear-gradient(var(--primary),transparent);animation:scrolldown 1.8s ease-in-out infinite;}
+@keyframes scrolldown{0%{opacity:0;transform:scaleY(.3);transform-origin:top;}50%{opacity:1;transform:scaleY(1);}100%{opacity:0;transform:scaleY(.3);transform-origin:bottom;}}
+
+/* ---------- projects ---------- */
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.6rem;}
+.project-card{padding:1.4rem;cursor:pointer;transition:transform .35s cubic-bezier(.16,.8,.3,1), border-color .35s ease, box-shadow .35s ease;display:flex;flex-direction:column;gap:1rem;}
+.project-card:hover{transform:translateY(-7px);border-color:var(--border-glow);box-shadow:0 24px 50px -22px rgba(6,182,212,.4);}
+.project-thumb{height:170px;border-radius:12px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2.6rem;background:linear-gradient(135deg, rgba(6,182,212,.16), rgba(37,99,235,.16));border:1px solid var(--border-glass);background-size:cover;background-position:center;transition:transform .5s ease;}
+.project-card:hover .project-thumb{transform:scale(1.045);}
+.project-top{display:flex;align-items:center;justify-content:space-between;}
+.project-card h3{font-family:var(--font-head);font-size:1.12rem;font-weight:600;}
+.project-card p{color:var(--text-dim);font-size:.92rem;}
+.project-tags{display:flex;gap:.4rem;flex-wrap:wrap;}
+.tag-chip{font-size:.68rem;font-family:var(--font-head);font-weight:600;padding:.22rem .55rem;border-radius:100px;background:rgba(255,255,255,.05);border:1px solid var(--border-glass);color:var(--text-dim);}
+.project-more{display:flex;align-items:center;gap:.4rem;font-family:var(--font-head);font-size:.8rem;font-weight:600;color:var(--primary);margin-top:auto;}
+.project-more svg{transition:transform .3s ease;}
+.project-card:hover .project-more svg{transform:translateX(5px);}
+.empty-state{color:var(--text-dim);padding:2rem;text-align:center;}
+
+/* ---------- achievements ---------- */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1.2rem;margin-bottom:2.4rem;}
+.stat{padding:1.5rem;text-align:center;}
+.stat .num{font-family:var(--font-head);font-weight:800;font-size:2.2rem;background:linear-gradient(120deg,var(--primary),var(--secondary));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.stat .label{color:var(--text-dim);font-size:.82rem;margin-top:.3rem;}
+.milestones-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1.2rem;}
+.milestone{padding:1.3rem;display:flex;gap:1rem;align-items:flex-start;transition:transform .3s ease, box-shadow .3s ease;}
+.milestone:hover{transform:translateY(-4px);box-shadow:0 18px 40px -22px rgba(6,182,212,.5);}
+.milestone .icon{width:40px;height:40px;flex:none;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.milestone h4{font-family:var(--font-head);font-size:.95rem;font-weight:600;margin-bottom:.2rem;}
+.milestone p{font-size:.82rem;color:var(--text-dim);}
+
+/* ---------- follow ---------- */
+.follow-section{text-align:center;}
+.follow-section .section-head{margin:0 auto 2.4rem;text-align:center;}
+.social-row{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;}
+.social-btn{display:flex;align-items:center;gap:.6rem;padding:.9rem 1.6rem;border-radius:100px;font-family:var(--font-head);font-weight:600;font-size:.9rem;transition:transform .3s ease, border-color .3s ease, background .3s ease;}
+.social-btn:hover{transform:translateY(-3px);border-color:var(--border-glow);background:rgba(6,182,212,.08);}
+.admin-link{color:var(--text-faint);font-size:.76rem;}
+.admin-link:hover{color:var(--text-dim);}
+</style>
+</head>
+<body>
+
+<!-- ===== LOADER ===== -->
+<div id="loader">
+  <div class="circuit-bg" aria-hidden="true">
+    <div class="sweep"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+    <svg viewBox="0 0 1000 700" preserveAspectRatio="none">
+      <path class="trace" d="M0,120 H220 L260,160 H500 L540,120 H1000"/>
+      <path class="trace" d="M0,340 H160 L200,300 H460 L500,340 H760 L800,300 H1000"/>
+      <path class="trace" d="M0,520 H300 L340,560 H620 L660,520 H1000"/>
+      <path class="trace" d="M120,0 V90 L160,130 V300"/>
+      <path class="trace" d="M860,0 V140 L820,180 V400"/>
+      <circle class="node" cx="220" cy="120" r="3"/>
+      <circle class="node" cx="500" cy="120" r="3" style="animation-delay:.4s"/>
+      <circle class="node" cx="200" cy="300" r="3" style="animation-delay:.8s"/>
+      <circle class="node" cx="760" cy="340" r="3" style="animation-delay:1.2s"/>
+      <circle class="node" cx="340" cy="560" r="3" style="animation-delay:1.6s"/>
+      <circle class="node" cx="660" cy="520" r="3" style="animation-delay:2s"/>
+      <circle class="node" cx="160" cy="130" r="3" style="animation-delay:.6s"/>
+      <circle class="node" cx="820" cy="180" r="3" style="animation-delay:1s"/>
+    </svg>
+  </div>
+  <div class="loader-inner">
+    <div class="loader-eyebrow">St Eric High School Robotics Club</div>
+    <h1 class="loader-title">
+      <span style="animation-delay:.25s">Empowering</span> <span class="glow" style="animation-delay:.38s">Future</span><br>
+      <span class="glow" style="animation-delay:.52s">Innovators</span> <span style="animation-delay:.65s">&amp;</span> <span class="glow" style="animation-delay:.78s">Engineers</span>
+    </h1>
+    <p class="loader-sub">Learning Robotics, One Project at a Time</p>
+    <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+  </div>
+</div>
+
+<!-- ===== NAVBAR ===== -->
+<header id="header">
+  <a href="#home" class="logo"><span class="dot">🤖</span> St Eric Robotics</a>
+  <nav class="desktop-nav">
+    <a href="#home">Home</a>
+    <a href="#projects">Projects</a>
+    <a href="#achievements">Achievements</a>
+    <a href="#gallery">Gallery</a>
+  </nav>
+  <div class="nav-actions">
+    <a href="#follow" class="btn btn-ghost" style="padding:.6rem 1.2rem;font-size:.82rem;">Follow Us</a>
+    <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<div class="mobile-panel" id="mobilePanel">
+  <a href="#home">Home</a>
+  <a href="#projects">Projects</a>
+  <a href="#achievements">Achievements</a>
+  <a href="#gallery">Gallery</a>
+  <a href="#follow">Follow Us</a>
+</div>
+
+<!-- ===== HERO ===== -->
+<section class="hero" id="home">
+  <div class="circuit-bg" aria-hidden="true">
+    <div class="sweep"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+    <svg viewBox="0 0 1000 700" preserveAspectRatio="none">
+      <path class="trace" d="M0,150 H240 L280,190 H520 L560,150 H1000"/>
+      <path class="trace" d="M0,400 H180 L220,360 H480 L520,400 H820 L860,360 H1000"/>
+      <path class="trace" d="M0,560 H320 L360,600 H640 L680,560 H1000"/>
+      <circle class="node" cx="240" cy="150" r="3"/>
+      <circle class="node" cx="520" cy="150" r="3" style="animation-delay:.5s"/>
+      <circle class="node" cx="220" cy="360" r="3" style="animation-delay:1s"/>
+      <circle class="node" cx="820" cy="360" r="3" style="animation-delay:1.5s"/>
+      <circle class="node" cx="360" cy="600" r="3" style="animation-delay:2s"/>
+    </svg>
+  </div>
+  <div class="hero-content">
+    <div class="eyebrow">Club Launched 2026</div>
+    <h1>Learning Robotics,<br><span class="accent">One Project at a Time</span></h1>
+    <p class="lead">We're students exploring electronics, programming, and robot design in the open — every build, bug, and breakthrough documented as we grow.</p>
+    <div class="hero-actions">
+      <a href="#follow" class="btn btn-primary">Follow Updates</a>
+      <a href="#projects" class="btn btn-ghost">View Projects</a>
+    </div>
+  </div>
+  <div class="hero-scroll"><span>Scroll</span><div class="line"></div></div>
+</section>
+
+<!-- ===== PROJECTS (live from Supabase) ===== -->
+<section class="section" id="projects">
+  <div class="section-head reveal">
+    <div class="eyebrow">Projects</div>
+    <h2>What we're building</h2>
+    <p>Every robot gets documented — completed, in progress, or just an idea on the whiteboard. Tap a card for the full build log.</p>
+  </div>
+  <div class="projects-grid" id="projectsGrid">
+    <div class="empty-state">Loading projects…</div>
+  </div>
+</section>
+
+<!-- ===== ACHIEVEMENTS ===== -->
+<section class="section" id="achievements">
+  <div class="section-head reveal">
+    <div class="eyebrow">Achievements</div>
+    <h2>Milestones, not medals</h2>
+    <p>We're a new club — so instead of trophies, we're tracking firsts.</p>
+  </div>
+  <div class="stats-row" id="statsRow"></div>
+  <div class="milestones-grid" id="milestonesGrid"></div>
+</section>
+
+<!-- ===== GALLERY ===== -->
+<section class="section" id="gallery">
+  <div class="section-head reveal">
+    <div class="eyebrow">Gallery</div>
+    <h2>From the workshop</h2>
+    <p>Placeholder tiles for now — once projects have real photos uploaded, this can pull straight from them too.</p>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</section>
+
+<!-- ===== FOLLOW US ===== -->
+<section class="section follow-section" id="follow">
+  <div class="section-head reveal">
+    <div class="eyebrow">Stay in the loop</div>
+    <h2>Follow us for updates</h2>
+    <p>We share project progress, test videos, coding experiments, and new robot builds.</p>
+  </div>
+  <div class="social-row reveal">
+    <a href="#" class="social-btn glass">📷 Instagram</a>
+    <a href="#" class="social-btn glass">📘 Facebook</a>
+    <a href="#" class="social-btn glass">▶️ YouTube</a>
+  </div>
+</section>
+
+<footer>
+  <div class="f-logo">🤖 St Eric High School Robotics Club</div>
+  <div class="f-tag">Learning • Building • Sharing</div>
+  <div>© 2026 St Eric High School Robotics Club</div>
+  <div style="margin-top:.9rem;"><a href="admin-login.html" class="admin-link">Admin login</a></div>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-nav prev" id="lbPrev">‹</button>
+  <div class="lightbox-box" id="lightboxBox"></div>
+  <button class="lightbox-nav next" id="lbNext">›</button>
+  <button class="lightbox-close" id="lbClose">✕</button>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testing', completed:'Completed'};
+const statusClass = s => 'status-'+(s||'planned');
+
+/* ---------------- load projects from Supabase ---------------- */
+const projectsGrid = document.getElementById('projectsGrid');
+async function loadProjects(){
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending:false });
+
+  if (error){
+    projectsGrid.innerHTML = `<div class="empty-state">Couldn't load projects. Check your Supabase config in supabase-config.js.</div>`;
+    console.error(error);
+    return;
+  }
+  if (!data || data.length === 0){
+    projectsGrid.innerHTML = `<div class="empty-state">No projects posted yet — check back soon.</div>`;
+    return;
+  }
+  projectsGrid.innerHTML = '';
+  data.forEach((p,i)=>{
+    const card = document.createElement('a');
+    card.href = `project.html?slug=${encodeURIComponent(p.slug)}`;
+    card.className = 'project-card glass reveal reveal-delay-'+((i%3)+1);
+    const bg = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
+    card.innerHTML = `
+      <div class="project-thumb" ${bg}>${p.cover_image_url ? '' : '🤖'}</div>
+      <div class="project-top">
+        <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
+      </div>
+      <h3>${p.title}</h3>
+      <p>${p.short_description || ''}</p>
+      <div class="project-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
+      <span class="project-more">View build log <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    `;
+    projectsGrid.appendChild(card);
+    io.observe(card);
+  });
+}
+loadProjects();
+
+/* ---------------- static achievements content ---------------- */
+const STATS = [
+  {num:3, label:'Projects Started'},
+  {num:6, label:'Milestones Reached'},
+  {num:1, label:'Club Founded (2026)'},
+  {num:100, label:'% Student-Built'}
+];
+const MILESTONES = [
+  {icon:'🤖', title:'First moving robot', note:'Our first chassis rolled under its own power.'},
+  {icon:'📡', title:'First ultrasonic reading', note:'Successfully read live distance data from the HC-SR04.'},
+  {icon:'🖥️', title:'First OLED display', note:'Got our first sensor readout showing on-screen.'},
+  {icon:'↩️', title:'First autonomous turn', note:'Robot turned on its own in response to an obstacle.'},
+  {icon:'📝', title:'First project documented', note:'Wrote our first full build log for the site.'},
+  {icon:'🚀', title:'Club launched in 2026', note:'St Eric Robotics Club officially kicked off.'}
+];
+const GALLERY = [
+  {icon:'🛠️', label:'Workshop bench', grad:'linear-gradient(135deg, rgba(6,182,212,.35), rgba(17,24,39,.9))'},
+  {icon:'📡', label:'Sensor close-up', grad:'linear-gradient(135deg, rgba(37,99,235,.4), rgba(17,24,39,.9))'},
+  {icon:'💻', label:'Coding session', grad:'linear-gradient(135deg, rgba(245,158,11,.3), rgba(17,24,39,.9))'},
+  {icon:'🤖', label:'Finished robot', grad:'linear-gradient(135deg, rgba(34,197,94,.3), rgba(17,24,39,.9))'},
+  {icon:'🔧', label:'Wiring in progress', grad:'linear-gradient(135deg, rgba(6,182,212,.3), rgba(37,99,235,.35))'},
+  {icon:'🧪', label:'Testing rig', grad:'linear-gradient(135deg, rgba(245,158,11,.25), rgba(37,99,235,.3))'}
+];
+
+const statsRow = document.getElementById('statsRow');
+STATS.forEach(s=>{
+  const el = document.createElement('div');
+  el.className = 'stat glass reveal';
+  el.innerHTML = `<div class="num" data-target="${s.num}">0</div><div class="label">${s.label}</div>`;
+  statsRow.appendChild(el);
+});
+const milestonesGrid = document.getElementById('milestonesGrid');
+MILESTONES.forEach((m,i)=>{
+  const el = document.createElement('div');
+  el.className = 'milestone glass reveal reveal-delay-'+((i%3)+1);
+  el.innerHTML = `<div class="icon">${m.icon}</div><div><h4>${m.title}</h4><p>${m.note}</p></div>`;
+  milestonesGrid.appendChild(el);
+});
+const galleryGrid = document.getElementById('galleryGrid');
+GALLERY.forEach((g,i)=>{
+  const el = document.createElement('div');
+  el.className = 'gallery-item reveal reveal-delay-'+((i%3)+1);
+  el.style.background = g.grad;
+  el.innerHTML = `<span class="g-icon">${g.icon}</span><span class="g-caption">${g.label}</span>`;
+  el.addEventListener('click', ()=>openLightbox(i));
+  galleryGrid.appendChild(el);
+});
+
+/* ---------------- loader ---------------- */
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{ document.getElementById('loader').classList.add('hidden'); }, 2100);
+});
+
+/* ---------------- navbar scroll + mobile menu ---------------- */
+const header = document.getElementById('header');
+window.addEventListener('scroll', ()=>{ header.classList.toggle('solid', window.scrollY > 40); });
+const hamburger = document.getElementById('hamburger');
+const mobilePanel = document.getElementById('mobilePanel');
+hamburger.addEventListener('click', ()=>{ hamburger.classList.toggle('open'); mobilePanel.classList.toggle('open'); });
+mobilePanel.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ hamburger.classList.remove('open'); mobilePanel.classList.remove('open'); }));
+
+/* ---------------- scroll reveal ---------------- */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+}, {threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ---------------- counters ---------------- */
+const counterIO = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el = e.target, target = +el.dataset.target;
+      let cur = 0; const step = Math.max(1, target/40);
+      const tick = ()=>{ cur += step; if(cur >= target){ el.textContent = target; } else { el.textContent = Math.floor(cur); requestAnimationFrame(tick); } };
+      tick(); counterIO.unobserve(el);
+    }
+  });
+}, {threshold:.4});
+document.querySelectorAll('.stat .num').forEach(c=>counterIO.observe(c));
+
+/* ---------------- lightbox (static gallery) ---------------- */
+const lightbox = document.getElementById('lightbox');
+const lightboxBox = document.getElementById('lightboxBox');
+let lbIndex = 0;
+function renderLightbox(){
+  const g = GALLERY[lbIndex];
+  lightboxBox.style.background = g.grad;
+  lightboxBox.innerHTML = `<div style="font-size:4rem;">${g.icon}</div><span class="lightbox-cap">${g.label}</span>`;
+}
+function openLightbox(i){ lbIndex = i; renderLightbox(); lightbox.classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLightbox(){ lightbox.classList.remove('open'); document.body.style.overflow=''; }
+document.getElementById('lbClose').addEventListener('click', closeLightbox);
+document.getElementById('lbPrev').addEventListener('click', ()=>{ lbIndex=(lbIndex-1+GALLERY.length)%GALLERY.length; renderLightbox(); });
+document.getElementById('lbNext').addEventListener('click', ()=>{ lbIndex=(lbIndex+1)%GALLERY.length; renderLightbox(); });
+lightbox.addEventListener('click', (e)=>{ if(e.target===lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeLightbox();
+  if(lightbox.classList.contains('open')){
+    if(e.key==='ArrowLeft') document.getElementById('lbPrev').click();
+    if(e.key==='ArrowRight') document.getElementById('lbNext').click();
+  }
+});
+let touchStartX = 0;
+lightbox.addEventListener('touchstart', (e)=>{ touchStartX = e.changedTouches[0].screenX; });
+lightbox.addEventListener('touchend', (e)=>{
+  const dx = e.changedTouches[0].screenX - touchStartX;
+  if(dx > 50) document.getElementById('lbPrev').click();
+  if(dx < -50) document.getElementById('lbNext').click();
+});
+</script>
+</body>
+</html>

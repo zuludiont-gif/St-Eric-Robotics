@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — St Eric Robotics Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.login-card{width:100%;max-width:400px;padding:2.4rem 2.2rem;position:relative;z-index:2;}
+.login-logo{display:flex;align-items:center;gap:.6rem;font-family:var(--font-head);font-weight:700;margin-bottom:1.8rem;}
+.login-logo .dot{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.login-card h1{font-family:var(--font-head);font-weight:700;font-size:1.4rem;margin-bottom:.4rem;}
+.login-card p.sub{color:var(--text-dim);font-size:.88rem;margin-bottom:1.8rem;}
+.back-home{position:absolute;top:1.6rem;left:1.8rem;color:var(--text-dim);font-family:var(--font-head);font-size:.82rem;font-weight:600;z-index:3;}
+.back-home:hover{color:var(--primary);}
+</style>
+</head>
+<body>
+<div class="circuit-bg" aria-hidden="true">
+  <div class="sweep"></div>
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+</div>
+<a href="index.html" class="back-home">← Back to site</a>
+
+<div class="login-card glass">
+  <div class="login-logo"><span class="dot">🤖</span> St Eric Robotics</div>
+  <h1>Admin Login</h1>
+  <p class="sub">Sign in to manage projects and build-log updates.</p>
+
+  <div class="msg msg-error" id="loginMsg"></div>
+
+  <form id="loginForm">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="email" required autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;" id="loginBtn">Sign In</button>
+  </form>
+  <p class="hint" style="margin-top:1.2rem;">Admin accounts are created in the Supabase dashboard — there's no public sign-up here.</p>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+const msgEl = document.getElementById('loginMsg');
+function showMsg(text, type){
+  msgEl.textContent = text;
+  msgEl.className = 'msg show ' + (type==='error' ? 'msg-error' : 'msg-success');
+}
+
+/* if already logged in, go straight to dashboard */
+(async ()=>{
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  if(session) window.location.href = 'admin-dashboard.html';
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(error){
+    showMsg(error.message, 'error');
+    btn.disabled = false; btn.textContent = 'Sign In';
+    return;
+  }
+  window.location.href = 'admin-dashboard.html';
+});
+</script>
+</body>
+</html>

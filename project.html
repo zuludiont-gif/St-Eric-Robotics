@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project — St Eric Robotics Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.p-hero{position:relative;padding:9rem 6vw 3rem;max-width:900px;margin:0 auto;}
+.back-link{display:inline-flex;align-items:center;gap:.4rem;color:var(--text-dim);font-family:var(--font-head);font-size:.85rem;font-weight:600;margin-bottom:1.6rem;}
+.back-link:hover{color:var(--primary);}
+.p-cover{height:320px;border-radius:20px;border:1px solid var(--border-glass);background:linear-gradient(135deg, rgba(6,182,212,.18), rgba(37,99,235,.18));background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:4rem;margin-bottom:1.6rem;}
+.p-title-row{display:flex;flex-wrap:wrap;align-items:center;gap:.9rem;margin-bottom:.6rem;}
+.p-title-row h1{font-family:var(--font-head);font-weight:800;font-size:clamp(1.7rem,4vw,2.5rem);}
+.p-tags{display:flex;gap:.5rem;flex-wrap:wrap;margin:.8rem 0 1.6rem;}
+.tag-chip{font-size:.72rem;font-family:var(--font-head);font-weight:600;padding:.28rem .65rem;border-radius:100px;background:rgba(255,255,255,.05);border:1px solid var(--border-glass);color:var(--text-dim);}
+.p-body{max-width:900px;margin:0 auto;padding:0 6vw 6rem;}
+.p-block{margin-bottom:2.2rem;}
+.p-block h3{font-family:var(--font-head);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);margin-bottom:.7rem;}
+.p-block p{color:var(--text-dim);font-size:1rem;}
+.p-block ul{padding-left:1.2rem;list-style:disc;color:var(--text-dim);}
+.p-block ul li{margin-bottom:.3rem;}
+code.snippet{display:block;background:#070b16;border:1px solid var(--border-glass);border-radius:12px;padding:1.2rem;font-size:.85rem;color:#9be3f0;white-space:pre-wrap;font-family:'Courier New',monospace;overflow-x:auto;}
+.video-embed{border-radius:14px;overflow:hidden;border:1px solid var(--border-glass);aspect-ratio:16/9;}
+.video-embed iframe, .video-embed video{width:100%;height:100%;border:0;}
+
+.buildlog{position:relative;padding-left:2rem;}
+.buildlog::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1.5px;background:linear-gradient(var(--primary), transparent);}
+.buildlog-item{position:relative;padding-bottom:1.6rem;}
+.buildlog-item:last-child{padding-bottom:0;}
+.buildlog-item::before{content:"";position:absolute;left:-2rem;top:.35rem;width:11px;height:11px;border-radius:50%;background:var(--bg);border:2px solid var(--primary);box-shadow:0 0 0 4px rgba(6,182,212,.12);}
+.buildlog-card{padding:1.1rem 1.3rem;}
+.buildlog-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.3rem;}
+.buildlog-title{font-family:var(--font-head);font-weight:600;font-size:.96rem;}
+.buildlog-date{color:var(--text-faint);font-size:.76rem;}
+.buildlog-note{color:var(--text-dim);font-size:.88rem;}
+.state-msg{color:var(--text-dim);padding:2rem 0;}
+</style>
+</head>
+<body>
+<header id="header">
+  <a href="index.html" class="logo"><span class="dot">🤖</span> St Eric Robotics</a>
+  <nav class="desktop-nav">
+    <a href="index.html#home">Home</a>
+    <a href="index.html#projects">Projects</a>
+    <a href="index.html#achievements">Achievements</a>
+    <a href="index.html#gallery">Gallery</a>
+  </nav>
+  <div class="nav-actions">
+    <a href="index.html#follow" class="btn btn-ghost" style="padding:.6rem 1.2rem;font-size:.82rem;">Follow Us</a>
+    <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+<div class="mobile-panel" id="mobilePanel">
+  <a href="index.html#home">Home</a>
+  <a href="index.html#projects">Projects</a>
+  <a href="index.html#achievements">Achievements</a>
+  <a href="index.html#gallery">Gallery</a>
+  <a href="index.html#follow">Follow Us</a>
+</div>
+
+<div id="content">
+  <div class="p-hero"><div class="state-msg">Loading project…</div></div>
+</div>
+
+<footer>
+  <div class="f-logo">🤖 St Eric High School Robotics Club</div>
+  <div class="f-tag">Learning • Building • Sharing</div>
+  <div>© 2026 St Eric High School Robotics Club</div>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-nav prev" id="lbPrev">‹</button>
+  <div class="lightbox-box" id="lightboxBox"></div>
+  <button class="lightbox-nav next" id="lbNext">›</button>
+  <button class="lightbox-close" id="lbClose">✕</button>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testing', completed:'Completed'};
+const statusClass = s => 'status-'+(s||'planned');
+const params = new URLSearchParams(window.location.search);
+const slug = params.get('slug');
+const contentEl = document.getElementById('content');
+
+function ytEmbed(url){
+  const m = url && url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/);
+  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+}
+
+let MEDIA = [];
+function renderLightboxItem(){
+  const m = MEDIA[lbIndex];
+  lightboxBox.innerHTML = '';
+  if(!m) return;
+  if(m.media_type === 'video'){
+    const yt = ytEmbed(m.url);
+    lightboxBox.innerHTML = yt
+      ? `<iframe src="${yt}" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`
+      : `<video src="${m.url}" controls autoplay></video>`;
+  } else {
+    lightboxBox.innerHTML = `<img src="${m.url}" alt="${m.caption||''}">`;
+  }
+  const cap = document.createElement('span');
+  cap.className = 'lightbox-cap';
+  cap.textContent = m.caption || '';
+  lightboxBox.appendChild(cap);
+}
+let lbIndex = 0;
+const lightbox = document.getElementById('lightbox');
+const lightboxBox = document.getElementById('lightboxBox');
+function openLightbox(i){ lbIndex = i; renderLightboxItem(); lightbox.classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLightbox(){ lightbox.classList.remove('open'); lightboxBox.innerHTML=''; document.body.style.overflow=''; }
+document.getElementById('lbClose').addEventListener('click', closeLightbox);
+document.getElementById('lbPrev').addEventListener('click', ()=>{ lbIndex=(lbIndex-1+MEDIA.length)%MEDIA.length; renderLightboxItem(); });
+document.getElementById('lbNext').addEventListener('click', ()=>{ lbIndex=(lbIndex+1)%MEDIA.length; renderLightboxItem(); });
+lightbox.addEventListener('click', (e)=>{ if(e.target===lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeLightbox();
+  if(lightbox.classList.contains('open')){
+    if(e.key==='ArrowLeft') document.getElementById('lbPrev').click();
+    if(e.key==='ArrowRight') document.getElementById('lbNext').click();
+  }
+});
+
+async function loadProject(){
+  if(!slug){ contentEl.innerHTML = `<div class="p-hero"><div class="state-msg">No project specified.</div></div>`; return; }
+
+  const { data: p, error } = await supabaseClient.from('projects').select('*').eq('slug', slug).single();
+  if(error || !p){
+    contentEl.innerHTML = `<div class="p-hero"><div class="state-msg">Project not found.</div></div>`;
+    return;
+  }
+
+  const [{ data: media }, { data: logs }] = await Promise.all([
+    supabaseClient.from('project_media').select('*').eq('project_id', p.id).order('created_at', {ascending:true}),
+    supabaseClient.from('build_logs').select('*').eq('project_id', p.id).order('created_at', {ascending:false})
+  ]);
+  MEDIA = media || [];
+
+  document.title = `${p.title} — St Eric Robotics Club`;
+
+  const coverStyle = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
+  const ytUrl = ytEmbed(p.video_url);
+
+  contentEl.innerHTML = `
+    <div class="p-hero reveal visible">
+      <a href="index.html#projects" class="back-link">← Back to Projects</a>
+      <div class="p-cover" ${coverStyle}>${p.cover_image_url ? '' : '🤖'}</div>
+      <div class="p-title-row">
+        <h1>${p.title}</h1>
+        <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
+      </div>
+      <p style="color:var(--text-dim);font-size:1.02rem;">${p.short_description||''}</p>
+      <div class="p-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
+    </div>
+    <div class="p-body">
+      ${p.goal ? `<div class="p-block"><h3>Goal</h3><p>${p.goal}</p></div>` : ''}
+      ${(p.components&&p.components.length) ? `<div class="p-block"><h3>Components</h3><ul>${p.components.map(c=>`<li>${c}</li>`).join('')}</ul></div>` : ''}
+      ${p.how_it_works ? `<div class="p-block"><h3>How it works</h3><p>${p.how_it_works}</p></div>` : ''}
+      ${(p.what_we_learned&&p.what_we_learned.length) ? `<div class="p-block"><h3>What we learned</h3><ul>${p.what_we_learned.map(l=>`<li>${l}</li>`).join('')}</ul></div>` : ''}
+      ${p.challenges ? `<div class="p-block"><h3>Challenges</h3><p>${p.challenges}</p></div>` : ''}
+      ${p.code_snippet ? `<div class="p-block"><h3>Code snippet</h3><code class="snippet">${p.code_snippet}</code></div>` : ''}
+      ${ytUrl ? `<div class="p-block"><h3>Video</h3><div class="video-embed"><iframe src="${ytUrl}" allowfullscreen></iframe></div></div>` : ''}
+      ${MEDIA.length ? `<div class="p-block"><h3>Photos &amp; Videos</h3><div class="gallery-grid" id="mediaGrid"></div></div>` : ''}
+      <div class="p-block">
+        <h3>Build Log</h3>
+        ${ (logs && logs.length) ? `<div class="buildlog">${logs.map(l=>`
+          <div class="buildlog-item">
+            <div class="buildlog-card glass">
+              <div class="buildlog-top">
+                <span class="buildlog-title">${l.title}</span>
+                <span class="status-badge ${statusClass(l.status)}">${STATUS_LABEL[l.status]||l.status}</span>
+              </div>
+              ${l.note ? `<div class="buildlog-note">${l.note}</div>` : ''}
+              <div class="buildlog-date">${new Date(l.created_at).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}</div>
+            </div>
+          </div>`).join('')}</div>` : `<p style="color:var(--text-dim);">No build log entries yet.</p>` }
+      </div>
+    </div>
+  `;
+
+  if(MEDIA.length){
+    const grid = document.getElementById('mediaGrid');
+    MEDIA.forEach((m,i)=>{
+      const el = document.createElement('div');
+      el.className = 'gallery-item';
+      if(m.media_type === 'image'){ el.style.backgroundImage = `url('${m.url}')`; }
+      else { el.style.background = 'linear-gradient(135deg, rgba(6,182,212,.3), rgba(17,24,39,.9))'; }
+      el.innerHTML = `<span class="g-icon">${m.media_type==='video'?'▶️':'🖼️'}</span><span class="g-caption">${m.caption||''}</span>`;
+      el.addEventListener('click', ()=>openLightbox(i));
+      grid.appendChild(el);
+    });
+  }
+}
+loadProject();
+
+/* navbar + mobile menu (shared behavior) */
+const header = document.getElementById('header');
+window.addEventListener('scroll', ()=>{ header.classList.toggle('solid', window.scrollY > 40); });
+header.classList.add('solid');
+const hamburger = document.getElementById('hamburger');
+const mobilePanel = document.getElementById('mobilePanel');
+hamburger.addEventListener('click', ()=>{ hamburger.classList.toggle('open'); mobilePanel.classList.toggle('open'); });
+mobilePanel.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ hamburger.classList.remove('open'); mobilePanel.classList.remove('open'); }));
+</script>
+</body>
+</html>

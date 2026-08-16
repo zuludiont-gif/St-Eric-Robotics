@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — St Eric Robotics Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{padding-top:5.2rem;}
+header{position:sticky;}
+.dash-wrap{max-width:1100px;margin:0 auto;padding:2rem 6vw 5rem;}
+.dash-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;}
+.dash-head h1{font-family:var(--font-head);font-weight:700;font-size:1.7rem;}
+.dash-head p{color:var(--text-dim);font-size:.9rem;margin-top:.3rem;}
+
+.panel{padding:1.8rem;margin-bottom:2.2rem;}
+.panel-title{font-family:var(--font-head);font-weight:700;font-size:1.1rem;margin-bottom:1.4rem;display:flex;align-items:center;justify-content:space-between;}
+
+.chip-input{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem;border:1px solid var(--border-glass);border-radius:12px;background:rgba(255,255,255,.03);min-height:48px;}
+.chip-input input{flex:1;min-width:120px;border:none;background:transparent;color:var(--text);font-family:var(--font-body);font-size:.9rem;outline:none;padding:.3rem;}
+.chip{display:flex;align-items:center;gap:.4rem;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);color:var(--primary);font-size:.78rem;font-family:var(--font-head);font-weight:600;padding:.3rem .6rem;border-radius:100px;}
+.chip button{background:none;border:none;color:inherit;font-size:.85rem;line-height:1;cursor:pointer;}
+
+.project-row{display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;border-radius:14px;border:1px solid var(--border-glass);margin-bottom:.8rem;flex-wrap:wrap;}
+.project-row .thumb{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg, rgba(6,182,212,.2), rgba(37,99,235,.2));background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex:none;}
+.project-row .info{flex:1;min-width:180px;}
+.project-row .info h4{font-family:var(--font-head);font-weight:600;font-size:.98rem;}
+.project-row .info .meta{color:var(--text-faint);font-size:.78rem;margin-top:.15rem;}
+.project-row .actions{display:flex;gap:.5rem;flex-wrap:wrap;}
+
+.manage-panel{border-top:1px solid var(--border-glass);margin-top:.9rem;padding-top:1.2rem;width:100%;display:none;}
+.manage-panel.open{display:block;}
+.manage-cols{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;}
+@media(max-width:800px){.manage-cols{grid-template-columns:1fr;}}
+.media-list{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:.8rem;}
+.media-item{position:relative;width:76px;height:76px;border-radius:10px;overflow:hidden;border:1px solid var(--border-glass);background:#0d1428;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background-size:cover;background-position:center;}
+.media-item .del{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:.65rem;display:flex;align-items:center;justify-content:center;border:none;}
+.buildlog-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.7rem .9rem;border:1px solid var(--border-glass);border-radius:10px;margin-bottom:.5rem;}
+.buildlog-row .bl-info{font-size:.86rem;}
+.buildlog-row .bl-title{font-family:var(--font-head);font-weight:600;}
+.buildlog-row .bl-note{color:var(--text-dim);font-size:.8rem;}
+
+.top-right{display:flex;align-items:center;gap:.8rem;}
+.form-actions{display:flex;gap:.8rem;margin-top:.4rem;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<header class="solid" id="header">
+  <a href="index.html" class="logo"><span class="dot">🤖</span> St Eric Robotics — Admin</a>
+  <div class="top-right">
+    <span id="userEmail" style="color:var(--text-dim);font-size:.82rem;"></span>
+    <a href="index.html" class="btn btn-ghost btn-sm">View Site</a>
+    <button class="btn btn-danger btn-sm" id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+<div class="dash-wrap">
+  <div class="dash-head">
+    <div>
+      <h1>Project Dashboard</h1>
+      <p>Add new builds, upload photos &amp; videos, and post build-log updates.</p>
+    </div>
+  </div>
+
+  <div class="msg msg-error" id="formMsg"></div>
+  <div class="msg msg-success" id="formMsgOk"></div>
+
+  <!-- ===== NEW / EDIT PROJECT FORM ===== -->
+  <div class="panel glass">
+    <div class="panel-title"><span id="formTitle">Add New Project</span></div>
+    <form id="projectForm">
+      <input type="hidden" id="projectId">
+      <div class="field-row">
+        <div class="field">
+          <label>Title</label>
+          <input type="text" id="pTitle" required placeholder="e.g. Line Follower Robot">
+        </div>
+        <div class="field">
+          <label>Slug (URL)</label>
+          <input type="text" id="pSlug" required placeholder="line-follower-robot">
+          <div class="hint">Used in the page link: project.html?slug=this</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Status</label>
+          <select id="pStatus">
+            <option value="planned">Planned</option>
+            <option value="progress">In Progress</option>
+            <option value="testing">Testing</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tags</label>
+          <div class="chip-input" id="tagInput"><input type="text" id="tagText" placeholder="Type a tag, press Enter"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Short Description</label>
+        <textarea id="pShort" placeholder="One or two sentences shown on the project card"></textarea>
+      </div>
+      <div class="field">
+        <label>Goal</label>
+        <textarea id="pGoal"></textarea>
+      </div>
+      <div class="field">
+        <label>Components (comma-separated)</label>
+        <input type="text" id="pComponents" placeholder="Raspberry Pi Pico WH, HC-SR04, L298N motor driver">
+      </div>
+      <div class="field">
+        <label>How It Works</label>
+        <textarea id="pHow"></textarea>
+      </div>
+      <div class="field">
+        <label>What We Learned (comma-separated)</label>
+        <input type="text" id="pLearned" placeholder="PWM motor control, Distance measurement">
+      </div>
+      <div class="field">
+        <label>Challenges</label>
+        <textarea id="pChallenges"></textarea>
+      </div>
+      <div class="field">
+        <label>Code Snippet (optional)</label>
+        <textarea id="pCode" style="font-family:'Courier New',monospace;"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Cover Image</label>
+          <div class="file-drop" id="coverDrop">Click to choose a cover image</div>
+          <input type="file" id="coverFile" accept="image/*" style="display:none;">
+          <div class="thumb-row" id="coverPreview"></div>
+        </div>
+        <div class="field">
+          <label>Video Link (YouTube etc — optional)</label>
+          <input type="url" id="pVideoUrl" placeholder="https://youtube.com/watch?v=...">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Project</button>
+        <button type="button" class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== PROJECT LIST ===== -->
+  <div class="panel glass">
+    <div class="panel-title">Existing Projects</div>
+    <div id="projectList"><p style="color:var(--text-dim);">Loading…</p></div>
+  </div>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+let currentUser = null;
+let tags = [];
+let coverFileObj = null;
+let projectsCache = [];
+
+/* ---------------- auth guard ---------------- */
+(async ()=>{
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  if(!session){ window.location.href = 'admin-login.html'; return; }
+  currentUser = session.user;
+  document.getElementById('userEmail').textContent = currentUser.email;
+  loadProjects();
+})();
+supabaseClient.auth.onAuthStateChange((event, session)=>{
+  if(event === 'SIGNED_OUT') window.location.href = 'admin-login.html';
+});
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await supabaseClient.auth.signOut();
+  window.location.href = 'admin-login.html';
+});
+
+/* ---------------- helpers ---------------- */
+function showFormMsg(text, ok){
+  const e1 = document.getElementById('formMsg'), e2 = document.getElementById('formMsgOk');
+  e1.classList.remove('show'); e2.classList.remove('show');
+  if(ok){ e2.textContent = text; e2.classList.add('show'); }
+  else { e1.textContent = text; e1.classList.add('show'); }
+  setTimeout(()=>{ e1.classList.remove('show'); e2.classList.remove('show'); }, 4500);
+}
+function slugify(str){
+  return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+}
+document.getElementById('pTitle').addEventListener('input', (e)=>{
+  if(!document.getElementById('projectId').value){ // only auto-fill slug for new projects
+    document.getElementById('pSlug').value = slugify(e.target.value);
+  }
+});
+
+/* ---------------- tags ---------------- */
+const tagInput = document.getElementById('tagInput');
+const tagText = document.getElementById('tagText');
+function renderTags(){
+  tagInput.querySelectorAll('.chip').forEach(c=>c.remove());
+  tags.forEach((t,i)=>{
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${t} <button type="button" data-i="${i}">✕</button>`;
+    chip.querySelector('button').addEventListener('click', ()=>{ tags.splice(i,1); renderTags(); });
+    tagInput.insertBefore(chip, tagText);
+  });
+}
+tagText.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' || e.key === ','){
+    e.preventDefault();
+    const v = tagText.value.trim();
+    if(v && !tags.includes(v)){ tags.push(v); renderTags(); }
+    tagText.value = '';
+  }
+});
+
+/* ---------------- cover image ---------------- */
+const coverDrop = document.getElementById('coverDrop');
+const coverFileInput = document.getElementById('coverFile');
+coverDrop.addEventListener('click', ()=>coverFileInput.click());
+coverFileInput.addEventListener('change', ()=>{
+  coverFileObj = coverFileInput.files[0] || null;
+  const preview = document.getElementById('coverPreview');
+  preview.innerHTML = '';
+  if(coverFileObj){
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.src = URL.createObjectURL(coverFileObj);
+    preview.appendChild(img);
+  }
+});
+
+async function uploadFile(file, pathPrefix){
+  const ext = file.name.split('.').pop();
+  const path = `${pathPrefix}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
+  const { error } = await supabaseClient.storage.from('project-media').upload(path, file);
+  if(error) throw error;
+  const { data } = supabaseClient.storage.from('project-media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ---------------- form reset / edit populate ---------------- */
+function resetForm(){
+  document.getElementById('projectId').value = '';
+  document.getElementById('formTitle').textContent = 'Add New Project';
+  document.getElementById('projectForm').reset();
+  tags = []; renderTags();
+  coverFileObj = null;
+  document.getElementById('coverPreview').innerHTML = '';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('saveBtn').textContent = 'Save Project';
+}
+document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+function populateForm(p){
+  document.getElementById('projectId').value = p.id;
+  document.getElementById('formTitle').textContent = 'Edit Project: ' + p.title;
+  document.getElementById('pTitle').value = p.title || '';
+  document.getElementById('pSlug').value = p.slug || '';
+  document.getElementById('pStatus').value = p.status || 'planned';
+  tags = [...(p.tags||[])]; renderTags();
+  document.getElementById('pShort').value = p.short_description || '';
+  document.getElementById('pGoal').value = p.goal || '';
+  document.getElementById('pComponents').value = (p.components||[]).join(', ');
+  document.getElementById('pHow').value = p.how_it_works || '';
+  document.getElementById('pLearned').value = (p.what_we_learned||[]).join(', ');
+  document.getElementById('pChallenges').value = p.challenges || '';
+  document.getElementById('pCode').value = p.code_snippet || '';
+  document.getElementById('pVideoUrl').value = p.video_url || '';
+  coverFileObj = null;
+  const preview = document.getElementById('coverPreview');
+  preview.innerHTML = '';
+  if(p.cover_image_url){
+    const img = document.createElement('img'); img.className='thumb'; img.src = p.cover_image_url;
+    preview.appendChild(img);
+  }
+  document.getElementById('cancelEditBtn').style.display = 'inline-flex';
+  document.getElementById('saveBtn').textContent = 'Update Project';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------------- submit project form ---------------- */
+document.getElementById('projectForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  const originalLabel = saveBtn.textContent;
+  saveBtn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  try{
+    const id = document.getElementById('projectId').value;
+    const slug = slugify(document.getElementById('pSlug').value);
+    let coverUrl = null;
+    if(coverFileObj){
+      coverUrl = await uploadFile(coverFileObj, `covers/${slug}`);
+    }
+
+    const payload = {
+      slug,
+      title: document.getElementById('pTitle').value.trim(),
+      status: document.getElementById('pStatus').value,
+      tags,
+      short_description: document.getElementById('pShort').value.trim(),
+      goal: document.getElementById('pGoal').value.trim(),
+      components: document.getElementById('pComponents').value.split(',').map(s=>s.trim()).filter(Boolean),
+      how_it_works: document.getElementById('pHow').value.trim(),
+      what_we_learned: document.getElementById('pLearned').value.split(',').map(s=>s.trim()).filter(Boolean),
+      challenges: document.getElementById('pChallenges').value.trim(),
+      code_snippet: document.getElementById('pCode').value,
+      video_url: document.getElementById('pVideoUrl').value.trim() || null,
+    };
+    if(coverUrl) payload.cover_image_url = coverUrl;
+
+    let error;
+    if(id){
+      ({ error } = await supabaseClient.from('projects').update(payload).eq('id', id));
+    } else {
+      ({ error } = await supabaseClient.from('projects').insert(payload));
+    }
+    if(error) throw error;
+
+    showFormMsg(id ? 'Project updated.' : 'Project added.', true);
+    resetForm();
+    loadProjects();
+  } catch(err){
+    console.error(err);
+    showFormMsg(err.message || 'Something went wrong saving the project.', false);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalLabel;
+  }
+});
+
+/* ---------------- project list ---------------- */
+const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testing', completed:'Completed'};
+const statusClass = s => 'status-'+(s||'planned');
+const projectList = document.getElementById('projectList');
+
+async function loadProjects(){
+  const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', {ascending:false});
+  if(error){ projectList.innerHTML = `<p style="color:var(--text-dim);">Couldn't load projects.</p>`; console.error(error); return; }
+  projectsCache = data || [];
+  if(!data || data.length === 0){ projectList.innerHTML = `<p style="color:var(--text-dim);">No projects yet — add your first one above.</p>`; return; }
+
+  projectList.innerHTML = '';
+  data.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'project-row glass';
+    const bg = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
+    row.innerHTML = `
+      <div class="thumb" ${bg}>${p.cover_image_url ? '' : '🤖'}</div>
+      <div class="info">
+        <h4>${p.title}</h4>
+        <div class="meta"><span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span> &nbsp;/${p.slug}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" data-action="edit">Edit</button>
+        <button class="btn btn-ghost btn-sm" data-action="manage">Manage Media &amp; Log</button>
+        <button class="btn btn-danger btn-sm" data-action="delete">Delete</button>
+      </div>
+      <div class="manage-panel" id="manage-${p.id}"></div>
+    `;
+    row.querySelector('[data-action="edit"]').addEventListener('click', ()=>populateForm(p));
+    row.querySelector('[data-action="delete"]').addEventListener('click', ()=>deleteProject(p.id, p.title));
+    row.querySelector('[data-action="manage"]').addEventListener('click', ()=>toggleManage(p));
+    projectList.appendChild(row);
+  });
+}
+
+async function deleteProject(id, title){
+  if(!confirm(`Delete "${title}"? This also removes its media and build log.`)) return;
+  const { error } = await supabaseClient.from('projects').delete().eq('id', id);
+  if(error){ alert('Could not delete: ' + error.message); return; }
+  loadProjects();
+}
+
+/* ---------------- manage panel: media + build log ---------------- */
+async function toggleManage(p){
+  const panel = document.getElementById(`manage-${p.id}`);
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.manage-panel.open').forEach(el=>el.classList.remove('open'));
+  if(isOpen) return;
+  panel.classList.add('open');
+  panel.innerHTML = `<p style="color:var(--text-dim);">Loading…</p>`;
+
+  const [{ data: media }, { data: logs }] = await Promise.all([
+    supabaseClient.from('project_media').select('*').eq('project_id', p.id).order('created_at', {ascending:false}),
+    supabaseClient.from('build_logs').select('*').eq('project_id', p.id).order('created_at', {ascending:false})
+  ]);
+
+  panel.innerHTML = `
+    <div class="manage-cols">
+      <div>
+        <label style="font-family:var(--font-head);font-size:.8rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;">Photos &amp; Videos</label>
+        <div class="file-drop" style="margin-top:.6rem;" id="mediaDrop-${p.id}">Click to upload images or videos</div>
+        <input type="file" id="mediaFile-${p.id}" accept="image/*,video/*" multiple style="display:none;">
+        <div class="media-list" id="mediaList-${p.id}"></div>
+      </div>
+      <div>
+        <label style="font-family:var(--font-head);font-size:.8rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;">Add Build Log Entry</label>
+        <div class="field" style="margin-top:.6rem;">
+          <input type="text" id="logTitle-${p.id}" placeholder="Update title, e.g. Line follower calibration">
+        </div>
+        <div class="field">
+          <textarea id="logNote-${p.id}" placeholder="What happened / what's next"></textarea>
+        </div>
+        <div class="field">
+          <select id="logStatus-${p.id}">
+            <option value="planned">Planned</option>
+            <option value="progress" selected>In Progress</option>
+            <option value="testing">Testing</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addLogBtn-${p.id}">Add Entry</button>
+        <div id="logList-${p.id}" style="margin-top:1rem;"></div>
+      </div>
+    </div>
+  `;
+
+  renderMediaList(p.id, media || []);
+  renderLogList(p.id, logs || []);
+
+  document.getElementById(`mediaDrop-${p.id}`).addEventListener('click', ()=>document.getElementById(`mediaFile-${p.id}`).click());
+  document.getElementById(`mediaFile-${p.id}`).addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files);
+    for(const file of files){
+      try{
+        const url = await uploadFile(file, `gallery/${p.slug}`);
+        const media_type = file.type.startsWith('video') ? 'video' : 'image';
+        await supabaseClient.from('project_media').insert({ project_id: p.id, media_type, url, caption: '' });
+      } catch(err){ alert('Upload failed: ' + err.message); }
+    }
+    const { data: freshMedia } = await supabaseClient.from('project_media').select('*').eq('project_id', p.id).order('created_at', {ascending:false});
+    renderMediaList(p.id, freshMedia || []);
+  });
+
+  document.getElementById(`addLogBtn-${p.id}`).addEventListener('click', async ()=>{
+    const title = document.getElementById(`logTitle-${p.id}`).value.trim();
+    if(!title) return;
+    const note = document.getElementById(`logNote-${p.id}`).value.trim();
+    const status = document.getElementById(`logStatus-${p.id}`).value;
+    const { error } = await supabaseClient.from('build_logs').insert({ project_id: p.id, title, note, status });
+    if(error){ alert('Could not add entry: ' + error.message); return; }
+    document.getElementById(`logTitle-${p.id}`).value = '';
+    document.getElementById(`logNote-${p.id}`).value = '';
+    const { data: freshLogs } = await supabaseClient.from('build_logs').select('*').eq('project_id', p.id).order('created_at', {ascending:false});
+    renderLogList(p.id, freshLogs || []);
+  });
+}
+
+function renderMediaList(projectId, media){
+  const el = document.getElementById(`mediaList-${projectId}`);
+  if(!el) return;
+  el.innerHTML = '';
+  media.forEach(m=>{
+    const item = document.createElement('div');
+    item.className = 'media-item';
+    if(m.media_type === 'image'){ item.style.backgroundImage = `url('${m.url}')`; }
+    else { item.textContent = '▶️'; }
+    item.innerHTML += `<button class="del" data-id="${m.id}">✕</button>`;
+    item.querySelector('.del').addEventListener('click', async ()=>{
+      if(!confirm('Remove this media item?')) return;
+      await supabaseClient.from('project_media').delete().eq('id', m.id);
+      const { data: fresh } = await supabaseClient.from('project_media').select('*').eq('project_id', projectId).order('created_at', {ascending:false});
+      renderMediaList(projectId, fresh || []);
+    });
+    el.appendChild(item);
+  });
+}
+
+function renderLogList(projectId, logs){
+  const el = document.getElementById(`logList-${projectId}`);
+  if(!el) return;
+  if(!logs.length){ el.innerHTML = `<p style="color:var(--text-faint);font-size:.82rem;">No entries yet.</p>`; return; }
+  el.innerHTML = '';
+  logs.forEach(l=>{
+    const row = document.createElement('div');
+    row.className = 'buildlog-row';
+    row.innerHTML = `
+      <div class="bl-info">
+        <div class="bl-title">${l.title} <span class="status-badge ${statusClass(l.status)}" style="margin-left:.4rem;">${STATUS_LABEL[l.status]}</span></div>
+        ${l.note ? `<div class="bl-note">${l.note}</div>` : ''}
+      </div>
+      <button class="btn btn-danger btn-sm" data-id="${l.id}">Delete</button>
+    `;
+    row.querySelector('button').addEventListener('click', async ()=>{
+      if(!confirm('Delete this build log entry?')) return;
+      await supabaseClient.from('build_logs').delete().eq('id', l.id);
+      const { data: fresh } = await supabaseClient.from('build_logs').select('*').eq('project_id', projectId).order('created_at', {ascending:false});
+      renderLogList(projectId, fresh || []);
+    });
+    el.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
