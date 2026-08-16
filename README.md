@@ -1,1 +1,1 @@
-St Erics Robotics
+St Erics Robotics Club 
