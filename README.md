@@ -1,3 +1,3 @@
-<h2>St Eric High Robotics</h2> 
+<h2>St Eric's High Robotics</h2> 
 
 
