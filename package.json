@@ -1,0 +1,19 @@
+{
+  "name": "st-eric-robotics",
+  "version": "1.0.0",
+  "description": "St Eric High School Robotics Club Website",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'Static site - no build step required'"
+  },
+  "keywords": [
+    "robotics",
+    "education"
+  ],
+  "author": "St Eric Robotics Club",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
