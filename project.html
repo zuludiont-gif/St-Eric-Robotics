@@ -46,7 +46,9 @@ code.snippet{display:block;background:#070b16;border:1px solid var(--border-glas
   <a href="index.html" class="logo"><span class="dot">🤖</span> St Eric Robotics</a>
   <nav class="desktop-nav">
     <a href="index.html#home">Home</a>
-    <a href="index.html#projects">Projects</a>
+    <a href="future-innovators.html">Future Innovators</a>
+    <a href="future-engineers.html">Future Engineers</a>
+    <a href="robostarters.html">RoboStarters</a>
     <a href="index.html#achievements">Achievements</a>
     <a href="index.html#gallery">Gallery</a>
   </nav>
@@ -57,7 +59,9 @@ code.snippet{display:block;background:#070b16;border:1px solid var(--border-glas
 </header>
 <div class="mobile-panel" id="mobilePanel">
   <a href="index.html#home">Home</a>
-  <a href="index.html#projects">Projects</a>
+  <a href="future-innovators.html">Future Innovators</a>
+  <a href="future-engineers.html">Future Engineers</a>
+  <a href="robostarters.html">RoboStarters</a>
   <a href="index.html#achievements">Achievements</a>
   <a href="index.html#gallery">Gallery</a>
   <a href="index.html#follow">Follow Us</a>
@@ -83,6 +87,11 @@ code.snippet{display:block;background:#070b16;border:1px solid var(--border-glas
 <script src="supabase-config.js"></script>
 <script>
 const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testing', completed:'Completed'};
+const GROUPS = [
+  { slug:'future-innovators', name:'Future Innovators', page:'future-innovators.html' },
+  { slug:'future-engineers', name:'Future Engineers', page:'future-engineers.html' },
+  { slug:'robostarters', name:'RoboStarters', page:'robostarters.html' }
+];
 const statusClass = s => 'status-'+(s||'planned');
 const params = new URLSearchParams(window.location.search);
 const slug = params.get('slug');
@@ -147,14 +156,16 @@ async function loadProject(){
 
   const coverStyle = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
   const ytUrl = ytEmbed(p.video_url);
+  const group = GROUPS.find(g => g.slug === (p.group_slug || 'robostarters')) || GROUPS[2];
 
   contentEl.innerHTML = `
     <div class="p-hero reveal visible">
-      <a href="index.html#projects" class="back-link">← Back to Projects</a>
+      <a href="${group.page}" class="back-link">← Back to ${group.name}</a>
       <div class="p-cover" ${coverStyle}>${p.cover_image_url ? '' : '🤖'}</div>
       <div class="p-title-row">
         <h1>${p.title}</h1>
         <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
+        <a href="${group.page}" class="group-badge">${group.name}</a>
       </div>
       <p style="color:var(--text-dim);font-size:1.02rem;">${p.short_description||''}</p>
       <div class="p-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>

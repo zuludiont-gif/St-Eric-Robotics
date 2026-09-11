@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoboStarters — St Eric Robotics Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="solid" id="header">
+  <a href="index.html" class="logo"><span class="dot">🤖</span> St Eric Robotics</a>
+  <nav class="desktop-nav">
+    <a href="index.html#home">Home</a>
+    <a href="future-innovators.html">Future Innovators</a>
+    <a href="future-engineers.html">Future Engineers</a>
+    <a href="robostarters.html" style="color:var(--text)">RoboStarters</a>
+    <a href="index.html#achievements">Achievements</a>
+    <a href="index.html#gallery">Gallery</a>
+  </nav>
+  <div class="nav-actions">
+    <a href="index.html#follow" class="btn btn-ghost" style="padding:.6rem 1.2rem;font-size:.82rem;">Follow Us</a>
+    <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+<div class="mobile-panel" id="mobilePanel">
+  <a href="index.html#home">Home</a>
+  <a href="future-innovators.html">Future Innovators</a>
+  <a href="future-engineers.html">Future Engineers</a>
+  <a href="robostarters.html">RoboStarters</a>
+  <a href="index.html#achievements">Achievements</a>
+  <a href="index.html#gallery">Gallery</a>
+  <a href="index.html#follow">Follow Us</a>
+</div>
+
+<section class="group-hero">
+  <div class="circuit-bg" aria-hidden="true">
+    <div class="sweep"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+  <div class="group-hero-inner">
+    <div class="eyebrow" style="justify-content:center;">St Eric Robotics Club</div>
+    <h1>RoboStarters</h1>
+    <p>Taking our first steps into robotics through experimentation, creativity and hands-on learning.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:1rem;">
+  <div class="projects-grid" id="projectsGrid">
+    <div class="empty-state">Loading projects…</div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-logo">🤖 St Eric High School Robotics Club</div>
+  <div class="f-tag">Learning • Building • Sharing</div>
+  <div>© 2026 St Eric High School Robotics Club</div>
+</footer>
+
+<script src="supabase-config.js"></script>
+<script>
+const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testing', completed:'Completed'};
+const statusClass = s => 'status-'+(s||'planned');
+const GROUP_SLUG = 'robostarters';
+
+const projectsGrid = document.getElementById('projectsGrid');
+async function loadProjects(){
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .select('*')
+    .eq('group_slug', GROUP_SLUG)
+    .order('created_at', { ascending:false });
+
+  if (error){
+    projectsGrid.innerHTML = `<div class="empty-state">Couldn't load projects. Check your Supabase config in supabase-config.js.</div>`;
+    console.error(error);
+    return;
+  }
+  if (!data || data.length === 0){
+    projectsGrid.innerHTML = `<div class="empty-state">No RoboStarters projects posted yet — check back soon.</div>`;
+    return;
+  }
+  projectsGrid.innerHTML = data.map((p,i)=>{
+    const bg = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
+    return `
+      <a href="project.html?slug=${encodeURIComponent(p.slug)}" class="project-card glass reveal reveal-delay-${(i%3)+1}">
+        <div class="project-thumb" ${bg}>${p.cover_image_url ? '' : '🤖'}</div>
+        <div class="project-top">
+          <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
+        </div>
+        <h3>${p.title}</h3>
+        <p>${p.short_description || ''}</p>
+        <div class="project-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
+        <span class="project-more">View build log <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>`;
+  }).join('');
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+}
+loadProjects();
+
+const header = document.getElementById('header');
+window.addEventListener('scroll', ()=>{ header.classList.toggle('solid', window.scrollY > 40); });
+const hamburger = document.getElementById('hamburger');
+const mobilePanel = document.getElementById('mobilePanel');
+hamburger.addEventListener('click', ()=>{ hamburger.classList.toggle('open'); mobilePanel.classList.toggle('open'); });
+mobilePanel.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ hamburger.classList.remove('open'); mobilePanel.classList.remove('open'); }));
+
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+}, {threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
