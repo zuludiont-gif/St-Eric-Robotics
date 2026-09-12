@@ -51,9 +51,9 @@
 </section>
 
 <section class="section" style="padding-top:1rem;">
-  <div class="projects-grid" id="projectsGrid">
-    <div class="empty-state">Loading projects…</div>
-  </div>
+  <div id="spotlightWrap"><div class="empty-state">Loading projects…</div></div>
+  <div class="pill-tabs" id="pillTabs" style="display:none;"></div>
+  <div class="overlay-grid" id="gridWrap"></div>
 </section>
 
 <footer>
@@ -68,7 +68,73 @@ const STATUS_LABEL = {planned:'Planned', progress:'In Progress', testing:'Testin
 const statusClass = s => 'status-'+(s||'planned');
 const GROUP_SLUG = 'robostarters';
 
-const projectsGrid = document.getElementById('projectsGrid');
+let ALL_PROJECTS = [];
+let activeFilter = 'all';
+
+const spotlightWrap = document.getElementById('spotlightWrap');
+const pillTabs = document.getElementById('pillTabs');
+const gridWrap = document.getElementById('gridWrap');
+
+function overlayCardHTML(p, delayIdx){
+  const bg = p.cover_image_url ? `background-image:url('${p.cover_image_url}');` : `background:linear-gradient(135deg, rgba(6,182,212,.35), rgba(37,99,235,.35));`;
+  return `
+    <a href="project.html?slug=${encodeURIComponent(p.slug)}" class="overlay-card reveal reveal-delay-${(delayIdx%3)+1}" style="${bg}">
+      <div class="overlay-top"><span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span></div>
+      <div class="overlay-body">
+        <h4>${p.title}</h4>
+        <p>${p.short_description || ''}</p>
+        <div class="overlay-tags">${(p.tags||[]).slice(0,3).map(t=>`<span class="overlay-tag">${t}</span>`).join('')}</div>
+      </div>
+    </a>`;
+}
+
+function renderSpotlight(p){
+  if(!p){ spotlightWrap.innerHTML = `<div class="empty-state">No RoboStarters projects posted yet — check back soon.</div>`; return; }
+  const bg = p.cover_image_url ? `background-image:url('${p.cover_image_url}');` : `background:linear-gradient(135deg, rgba(6,182,212,.4), rgba(37,99,235,.4));`;
+  spotlightWrap.innerHTML = `
+    <a href="project.html?slug=${encodeURIComponent(p.slug)}" class="spotlight-card reveal visible" style="${bg}">
+      <div class="spotlight-body">
+        <div class="spotlight-eyebrow">
+          <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
+          ${(p.tags||[]).slice(0,2).map(t=>`<span class="overlay-tag">${t}</span>`).join('')}
+        </div>
+        <h3>${p.title}</h3>
+        <p>${p.short_description || ''}</p>
+        <span class="spotlight-cta">View Project →</span>
+      </div>
+    </a>`;
+}
+
+function renderGrid(){
+  const rest = ALL_PROJECTS.slice(1);
+  const filtered = activeFilter === 'all' ? rest : rest.filter(p => (p.status||'planned') === activeFilter);
+  if(!filtered.length){
+    gridWrap.innerHTML = rest.length ? `<div class="empty-state">No projects match this filter.</div>` : '';
+    return;
+  }
+  gridWrap.innerHTML = filtered.map((p,i)=>overlayCardHTML(p,i)).join('');
+  gridWrap.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+}
+
+function renderTabs(){
+  const rest = ALL_PROJECTS.slice(1);
+  if(rest.length < 2){ pillTabs.style.display = 'none'; return; }
+  const statuses = ['all', ...new Set(rest.map(p => p.status || 'planned'))];
+  pillTabs.style.display = 'flex';
+  pillTabs.innerHTML = statuses.map(st => {
+    const label = st === 'all' ? 'All' : (STATUS_LABEL[st] || st);
+    return `<button class="pill-tab ${st===activeFilter?'active':''}" data-status="${st}">${label}</button>`;
+  }).join('');
+  pillTabs.querySelectorAll('.pill-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      activeFilter = btn.dataset.status;
+      pillTabs.querySelectorAll('.pill-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderGrid();
+    });
+  });
+}
+
 async function loadProjects(){
   const { data, error } = await supabaseClient
     .from('projects')
@@ -77,29 +143,14 @@ async function loadProjects(){
     .order('created_at', { ascending:false });
 
   if (error){
-    projectsGrid.innerHTML = `<div class="empty-state">Couldn't load projects. Check your Supabase config in supabase-config.js.</div>`;
+    spotlightWrap.innerHTML = `<div class="empty-state">Couldn't load projects. Check your Supabase config in supabase-config.js.</div>`;
     console.error(error);
     return;
   }
-  if (!data || data.length === 0){
-    projectsGrid.innerHTML = `<div class="empty-state">No RoboStarters projects posted yet — check back soon.</div>`;
-    return;
-  }
-  projectsGrid.innerHTML = data.map((p,i)=>{
-    const bg = p.cover_image_url ? `style="background-image:url('${p.cover_image_url}')"` : '';
-    return `
-      <a href="project.html?slug=${encodeURIComponent(p.slug)}" class="project-card glass reveal reveal-delay-${(i%3)+1}">
-        <div class="project-thumb" ${bg}>${p.cover_image_url ? '' : '🤖'}</div>
-        <div class="project-top">
-          <span class="status-badge ${statusClass(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>
-        </div>
-        <h3>${p.title}</h3>
-        <p>${p.short_description || ''}</p>
-        <div class="project-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
-        <span class="project-more">View build log <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </a>`;
-  }).join('');
-  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  ALL_PROJECTS = data || [];
+  renderSpotlight(ALL_PROJECTS[0]);
+  renderTabs();
+  renderGrid();
 }
 loadProjects();
 
