@@ -139,6 +139,20 @@
       <circle class="node" cx="360" cy="600" r="3" style="animation-delay:2s"/>
     </svg>
   </div>
+  <div class="hero-groups-strip">
+    <a href="robostarters.html" class="hero-group-tile" style="background:linear-gradient(135deg, rgba(100,116,139,.4), rgba(17,24,39,.95));">
+      <span class="tile-icon">🔰</span>
+      <span class="tile-label">RoboStarters</span>
+    </a>
+    <a href="future-engineers.html" class="hero-group-tile" style="background:linear-gradient(135deg, rgba(37,99,235,.4), rgba(17,24,39,.95));">
+      <span class="tile-icon">⚙️</span>
+      <span class="tile-label">Future Engineers</span>
+    </a>
+    <a href="future-innovators.html" class="hero-group-tile" style="background:linear-gradient(135deg, rgba(6,182,212,.45), rgba(37,99,235,.4));">
+      <span class="tile-icon">💡</span>
+      <span class="tile-label">Future Innovators</span>
+    </a>
+  </div>
   <div class="hero-content">
     <div class="eyebrow">Club Launched 2026</div>
     <h1>Learning Robotics,<br><span class="accent">One Project at a Time</span></h1>
@@ -167,8 +181,8 @@
 <section class="section" id="achievements">
   <div class="section-head reveal">
     <div class="eyebrow">Achievements</div>
-    <h2>Milestones</h2>
-    <p>What we have Archieved</p>
+    <h2>Milestones, not medals</h2>
+    <p>We're a new club — so instead of trophies, we're tracking firsts.</p>
   </div>
   <div class="stats-row" id="statsRow"></div>
   <div class="milestones-grid" id="milestonesGrid"></div>
@@ -179,8 +193,9 @@
   <div class="section-head reveal">
     <div class="eyebrow">Gallery</div>
     <h2>From the workshop</h2>
-    <p>     </p>
+    <p>Photos and clips from the club — not tied to any one project.</p>
   </div>
+  <div class="pill-tabs gallery-tabs" id="galleryTabs" style="display:none;"></div>
   <div class="gallery-grid" id="galleryGrid"></div>
 </section>
 
@@ -195,20 +210,30 @@
     <a href="#" class="social-btn glass">📷 Instagram</a>
     <a href="#" class="social-btn glass">📘 Facebook</a>
     <a href="#" class="social-btn glass">▶️ YouTube</a>
+    <a href="#" class="social-btn glass">💬 WhatsApp</a>
   </div>
 </section>
 
 <footer>
+  <div class="footer-thanks">Thank you for visiting our website — come back and see what we've built next.</div>
+  <div class="footer-social">
+    <a href="#" aria-label="Instagram">📷</a>
+    <a href="#" aria-label="Facebook">📘</a>
+    <a href="#" aria-label="YouTube">▶️</a>
+    <a href="#" aria-label="WhatsApp">💬</a>
+  </div>
   <div class="f-logo">🤖 St Eric High School Robotics Club</div>
   <div class="f-tag">Learning • Building • Sharing</div>
   <div>© 2026 St Eric High School Robotics Club</div>
-  <div>Website By Joydee Design Studio</div>
   <div style="margin-top:.9rem;"><a href="admin-login.html" class="admin-link">Admin login</a></div>
 </footer>
 
 <div class="lightbox" id="lightbox">
   <button class="lightbox-nav prev" id="lbPrev">‹</button>
-  <div class="lightbox-box" id="lightboxBox"></div>
+  <div class="gallery-lightbox-box" id="lightboxBox">
+    <div class="glb-media" id="glbMedia"></div>
+    <div class="glb-meta" id="glbMeta"></div>
+  </div>
   <button class="lightbox-nav next" id="lbNext">›</button>
   <button class="lightbox-close" id="lbClose">✕</button>
 </div>
@@ -291,14 +316,54 @@ const MILESTONES = [
   {icon:'📝', title:'First project documented', note:'Wrote our first full build log for the site.'},
   {icon:'🚀', title:'Club launched in 2026', note:'St Eric Robotics Club officially kicked off.'}
 ];
-const GALLERY = [
-  {icon:'🛠️', label:'Workshop bench', grad:'linear-gradient(135deg, rgba(6,182,212,.35), rgba(17,24,39,.9))'},
-  {icon:'📡', label:'Sensor close-up', grad:'linear-gradient(135deg, rgba(37,99,235,.4), rgba(17,24,39,.9))'},
-  {icon:'💻', label:'Coding session', grad:'linear-gradient(135deg, rgba(245,158,11,.3), rgba(17,24,39,.9))'},
-  {icon:'🤖', label:'Finished robot', grad:'linear-gradient(135deg, rgba(34,197,94,.3), rgba(17,24,39,.9))'},
-  {icon:'🔧', label:'Wiring in progress', grad:'linear-gradient(135deg, rgba(6,182,212,.3), rgba(37,99,235,.35))'},
-  {icon:'🧪', label:'Testing rig', grad:'linear-gradient(135deg, rgba(245,158,11,.25), rgba(37,99,235,.3))'}
-];
+const galleryGrid = document.getElementById('galleryGrid');
+let GALLERY = [];
+let GALLERY_VISIBLE = [];
+let galleryFilter = 'all';
+
+async function loadGallery(){
+  const { data, error } = await supabaseClient.from('gallery_items').select('*').order('created_at', {ascending:false});
+  if(error){ galleryGrid.innerHTML = `<div class="empty-state">Couldn't load the gallery yet.</div>`; return; }
+  GALLERY = data || [];
+  renderGalleryTabs();
+  renderGalleryGrid();
+}
+
+function renderGalleryTabs(){
+  const tabsEl = document.getElementById('galleryTabs');
+  const tagSet = new Set();
+  GALLERY.forEach(g => (g.tags || []).forEach(t => tagSet.add(t)));
+  if(tagSet.size < 2){ tabsEl.style.display = 'none'; return; }
+  const tags = ['all', ...Array.from(tagSet).sort()];
+  tabsEl.style.display = 'flex';
+  tabsEl.innerHTML = tags.map(t => `<button class="pill-tab ${t===galleryFilter?'active':''}" data-tag="${t}">${t==='all'?'All':t}</button>`).join('');
+  tabsEl.querySelectorAll('.pill-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      galleryFilter = btn.dataset.tag;
+      tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderGalleryGrid();
+    });
+  });
+}
+
+function renderGalleryGrid(){
+  GALLERY_VISIBLE = galleryFilter === 'all' ? GALLERY : GALLERY.filter(g => (g.tags||[]).includes(galleryFilter));
+  galleryGrid.innerHTML = '';
+  if(!GALLERY_VISIBLE.length){ galleryGrid.innerHTML = `<div class="empty-state">No photos here yet — check back soon.</div>`; return; }
+  GALLERY_VISIBLE.forEach((g,i)=>{
+    const el = document.createElement('div');
+    el.className = 'gallery-item reveal reveal-delay-'+((i%3)+1);
+    if(g.media_type === 'video'){
+      el.innerHTML = `<video src="${g.media_url}" muted preload="metadata"></video><span class="g-play">▶️</span>${g.caption?`<span class="g-caption">${g.caption}</span>`:''}`;
+    } else {
+      el.style.backgroundImage = `url('${g.media_url}')`;
+      el.innerHTML = g.caption ? `<span class="g-caption">${g.caption}</span>` : '';
+    }
+    el.addEventListener('click', ()=>openLightbox(i));
+    galleryGrid.appendChild(el);
+  });
+}
 
 const statsRow = document.getElementById('statsRow');
 STATS.forEach(s=>{
@@ -314,15 +379,7 @@ MILESTONES.forEach((m,i)=>{
   el.innerHTML = `<div class="icon">${m.icon}</div><div><h4>${m.title}</h4><p>${m.note}</p></div>`;
   milestonesGrid.appendChild(el);
 });
-const galleryGrid = document.getElementById('galleryGrid');
-GALLERY.forEach((g,i)=>{
-  const el = document.createElement('div');
-  el.className = 'gallery-item reveal reveal-delay-'+((i%3)+1);
-  el.style.background = g.grad;
-  el.innerHTML = `<span class="g-icon">${g.icon}</span><span class="g-caption">${g.label}</span>`;
-  el.addEventListener('click', ()=>openLightbox(i));
-  galleryGrid.appendChild(el);
-});
+loadGallery();
 
 /* ---------------- loader ---------------- */
 window.addEventListener('load', ()=>{
@@ -356,20 +413,27 @@ const counterIO = new IntersectionObserver((entries)=>{
 }, {threshold:.4});
 document.querySelectorAll('.stat .num').forEach(c=>counterIO.observe(c));
 
-/* ---------------- lightbox (static gallery) ---------------- */
+/* ---------------- lightbox (dynamic gallery, Facebook-post style) ---------------- */
 const lightbox = document.getElementById('lightbox');
-const lightboxBox = document.getElementById('lightboxBox');
+const glbMedia = document.getElementById('glbMedia');
+const glbMeta = document.getElementById('glbMeta');
 let lbIndex = 0;
 function renderLightbox(){
-  const g = GALLERY[lbIndex];
-  lightboxBox.style.background = g.grad;
-  lightboxBox.innerHTML = `<div style="font-size:4rem;">${g.icon}</div><span class="lightbox-cap">${g.label}</span>`;
+  const g = GALLERY_VISIBLE[lbIndex];
+  if(!g) return;
+  glbMedia.innerHTML = g.media_type === 'video'
+    ? `<video src="${g.media_url}" controls autoplay></video>`
+    : `<img src="${g.media_url}" alt="${g.caption||''}">`;
+  const tagsHtml = (g.tags && g.tags.length) ? `<div class="glb-tags">${g.tags.map(t=>`<span>${t}</span>`).join('')}</div>` : '';
+  const linkHtml = g.link_url ? `<a class="glb-link" href="${g.link_url}" target="_blank" rel="noopener">Visit link ↗</a>` : '';
+  const capHtml = g.caption ? `<div class="glb-cap">${g.caption}</div>` : '';
+  glbMeta.innerHTML = capHtml + tagsHtml + linkHtml;
 }
 function openLightbox(i){ lbIndex = i; renderLightbox(); lightbox.classList.add('open'); document.body.style.overflow='hidden'; }
-function closeLightbox(){ lightbox.classList.remove('open'); document.body.style.overflow=''; }
+function closeLightbox(){ lightbox.classList.remove('open'); glbMedia.innerHTML=''; document.body.style.overflow=''; }
 document.getElementById('lbClose').addEventListener('click', closeLightbox);
-document.getElementById('lbPrev').addEventListener('click', ()=>{ lbIndex=(lbIndex-1+GALLERY.length)%GALLERY.length; renderLightbox(); });
-document.getElementById('lbNext').addEventListener('click', ()=>{ lbIndex=(lbIndex+1)%GALLERY.length; renderLightbox(); });
+document.getElementById('lbPrev').addEventListener('click', ()=>{ lbIndex=(lbIndex-1+GALLERY_VISIBLE.length)%GALLERY_VISIBLE.length; renderLightbox(); });
+document.getElementById('lbNext').addEventListener('click', ()=>{ lbIndex=(lbIndex+1)%GALLERY_VISIBLE.length; renderLightbox(); });
 lightbox.addEventListener('click', (e)=>{ if(e.target===lightbox) closeLightbox(); });
 document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape') closeLightbox();

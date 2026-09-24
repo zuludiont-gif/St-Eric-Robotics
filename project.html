@@ -39,6 +39,19 @@ code.snippet{display:block;background:#070b16;border:1px solid var(--border-glas
 .buildlog-date{color:var(--text-faint);font-size:.76rem;}
 .buildlog-note{color:var(--text-dim);font-size:.88rem;}
 .state-msg{color:var(--text-dim);padding:2rem 0;}
+
+.pslide-wrap{position:relative;margin-bottom:2.4rem;border-radius:18px;overflow:hidden;border:1px solid var(--border-glass);}
+.pslide-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;}
+.pslide-track::-webkit-scrollbar{display:none;}
+.pslide{position:relative;flex:none;width:100%;scroll-snap-align:start;}
+.pslide img{width:100%;display:block;}
+.pslide-hotspot{position:absolute;background:transparent;border:none;padding:0;cursor:pointer;}
+.pslide-hotspot:hover{background:rgba(255,255,255,.07);}
+.pslide-nav{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:3;}
+.pslide-nav.prev{left:.7rem;} .pslide-nav.next{right:.7rem;}
+.pslide-dots{position:absolute;bottom:.8rem;left:0;right:0;display:flex;justify-content:center;gap:.4rem;z-index:3;}
+.pslide-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);}
+.pslide-dots span.active{background:#fff;}
 </style>
 </head>
 <body>
@@ -72,9 +85,17 @@ code.snippet{display:block;background:#070b16;border:1px solid var(--border-glas
 </div>
 
 <footer>
+  <div class="footer-thanks">Thank you for visiting our website — come back and see what we've built next.</div>
+  <div class="footer-social">
+    <a href="#" aria-label="Instagram">📷</a>
+    <a href="#" aria-label="Facebook">📘</a>
+    <a href="#" aria-label="YouTube">▶️</a>
+    <a href="#" aria-label="WhatsApp">💬</a>
+  </div>
   <div class="f-logo">🤖 St Eric High School Robotics Club</div>
   <div class="f-tag">Learning • Building • Sharing</div>
   <div>© 2026 St Eric High School Robotics Club</div>
+  <div style="margin-top:.9rem;"><a href="admin-login.html" class="admin-link">Admin login</a></div>
 </footer>
 
 <div class="lightbox" id="lightbox">
@@ -137,6 +158,14 @@ document.addEventListener('keydown', (e)=>{
   }
 });
 
+function runHotspot(action, value){
+  if(action === 'home') location.href = 'index.html';
+  else if(action === 'scroll_top') window.scrollTo({top:0, behavior:'smooth'});
+  else if(action === 'contact') location.href = 'index.html#follow';
+  else if(action === 'project_link' && value) location.href = `project.html?slug=${encodeURIComponent(value)}`;
+  else if(action === 'url' && value) window.open(value, '_blank', 'noopener');
+}
+
 async function loadProject(){
   if(!slug){ contentEl.innerHTML = `<div class="p-hero"><div class="state-msg">No project specified.</div></div>`; return; }
 
@@ -146,11 +175,20 @@ async function loadProject(){
     return;
   }
 
-  const [{ data: media }, { data: logs }] = await Promise.all([
+  const [{ data: media }, { data: logs }, { data: slides }] = await Promise.all([
     supabaseClient.from('project_media').select('*').eq('project_id', p.id).order('created_at', {ascending:true}),
-    supabaseClient.from('build_logs').select('*').eq('project_id', p.id).order('created_at', {ascending:false})
+    supabaseClient.from('build_logs').select('*').eq('project_id', p.id).order('created_at', {ascending:false}),
+    supabaseClient.from('project_slides').select('*').eq('project_id', p.id).order('sort_order')
   ]);
   MEDIA = media || [];
+
+  let SLIDES = [];
+  if(slides && slides.length){
+    for(const s of slides){
+      const { data: buttons } = await supabaseClient.from('project_slide_buttons').select('*').eq('slide_id', s.id);
+      SLIDES.push({...s, buttons: buttons || []});
+    }
+  }
 
   document.title = `${p.title} — St Eric Robotics Club`;
 
@@ -171,6 +209,21 @@ async function loadProject(){
       <div class="p-tags">${(p.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
     </div>
     <div class="p-body">
+      ${SLIDES.length ? `
+      <div class="pslide-wrap" id="pslideWrap">
+        <div class="pslide-track" id="pslideTrack">
+          ${SLIDES.map(s => `
+            <div class="pslide">
+              <img src="${s.image_url}" alt="">
+              ${s.buttons.map(b => `<button class="pslide-hotspot" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;" data-action="${b.action_type}" data-value="${b.action_value||''}" aria-label="${b.label||'link'}"></button>`).join('')}
+            </div>`).join('')}
+        </div>
+        ${SLIDES.length > 1 ? `
+          <button class="pslide-nav prev" id="pslidePrev">‹</button>
+          <button class="pslide-nav next" id="pslideNext">›</button>
+          <div class="pslide-dots" id="pslideDots">${SLIDES.map((_,i)=>`<span class="${i===0?'active':''}"></span>`).join('')}</div>
+        ` : ''}
+      </div>` : ''}
       ${p.goal ? `<div class="p-block"><h3>Goal</h3><p>${p.goal}</p></div>` : ''}
       ${(p.components&&p.components.length) ? `<div class="p-block"><h3>Components</h3><ul>${p.components.map(c=>`<li>${c}</li>`).join('')}</ul></div>` : ''}
       ${p.how_it_works ? `<div class="p-block"><h3>How it works</h3><p>${p.how_it_works}</p></div>` : ''}
@@ -195,6 +248,24 @@ async function loadProject(){
       </div>
     </div>
   `;
+
+  if(SLIDES.length){
+    const track = document.getElementById('pslideTrack');
+    const dots = document.querySelectorAll('#pslideDots span');
+    track.querySelectorAll('.pslide-hotspot').forEach(btn=>{
+      btn.addEventListener('click', ()=>runHotspot(btn.dataset.action, btn.dataset.value));
+    });
+    if(SLIDES.length > 1){
+      const goTo = (i)=>{ track.scrollTo({left: i*track.clientWidth, behavior:'smooth'}); };
+      let current = 0;
+      document.getElementById('pslidePrev').addEventListener('click', ()=>{ current = (current-1+SLIDES.length)%SLIDES.length; goTo(current); });
+      document.getElementById('pslideNext').addEventListener('click', ()=>{ current = (current+1)%SLIDES.length; goTo(current); });
+      track.addEventListener('scroll', ()=>{
+        current = Math.round(track.scrollLeft / track.clientWidth);
+        dots.forEach((d,i)=>d.classList.toggle('active', i===current));
+      });
+    }
+  }
 
   if(MEDIA.length){
     const grid = document.getElementById('mediaGrid');

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide Editor — St Eric Robotics Club Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{padding-bottom:4rem;}
+.editor-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;padding:1.6rem 6vw 1rem;max-width:1280px;margin:0 auto;}
+.editor-header h1{font-family:var(--font-head);font-size:1.4rem;font-weight:700;}
+.editor-header .sub{color:var(--text-dim);font-size:.85rem;margin-top:.2rem;}
+.editor-wrap{max-width:1280px;margin:0 auto;padding:0 6vw;}
+.help-note{background:var(--card-glass);border:1px solid var(--border-glass);border-radius:14px;padding:1rem 1.2rem;font-size:.85rem;color:var(--text-dim);margin-bottom:1.6rem;}
+.help-note b{color:var(--text);}
+
+/* slide strip */
+.slide-strip{display:flex;gap:.8rem;overflow-x:auto;padding-bottom:.6rem;margin-bottom:1.6rem;}
+.slide-thumb{position:relative;flex:none;width:150px;height:90px;border-radius:10px;overflow:hidden;border:2px solid var(--border-glass);cursor:pointer;background-size:cover;background-position:center;background-color:var(--card);display:flex;align-items:center;justify-content:center;}
+.slide-thumb.active{border-color:var(--primary);}
+.slide-thumb .num{position:absolute;top:.3rem;left:.4rem;background:rgba(0,0,0,.55);color:#fff;font-size:.68rem;font-family:var(--font-head);padding:.1rem .4rem;border-radius:6px;}
+.slide-thumb .del{position:absolute;top:.25rem;right:.3rem;background:rgba(0,0,0,.6);color:#fff;border:none;width:20px;height:20px;border-radius:50%;font-size:.7rem;line-height:1;}
+.slide-add{flex:none;width:150px;height:90px;border-radius:10px;border:2px dashed var(--border-glass);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1.6rem;cursor:pointer;}
+.slide-add:hover{border-color:var(--border-glow);color:var(--primary);}
+
+/* canvas */
+.editor-canvas{position:relative;width:100%;border-radius:16px;overflow:hidden;border:1px solid var(--border-glass);background:var(--card);user-select:none;}
+.editor-canvas img{width:100%;display:block;pointer-events:none;}
+.hotspot-box{position:absolute;border:2px dashed var(--primary);background:rgba(6,182,212,.14);border-radius:4px;display:flex;align-items:flex-start;justify-content:flex-end;}
+.hotspot-box .tag{background:var(--primary);color:#04222a;font-family:var(--font-head);font-size:.62rem;font-weight:700;padding:.15rem .4rem;border-radius:0 0 0 6px;white-space:nowrap;}
+.hotspot-box .del{background:var(--danger);color:#fff;border:none;width:18px;height:18px;border-radius:50%;font-size:.62rem;line-height:1;margin:.2rem;flex:none;}
+.drawing-box{position:absolute;border:2px solid var(--primary);background:rgba(6,182,212,.22);border-radius:4px;pointer-events:none;}
+.empty-canvas{padding:4rem 2rem;text-align:center;color:var(--text-dim);}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(5,8,16,.72);backdrop-filter:blur(6px);z-index:200;display:none;align-items:center;justify-content:center;padding:1.5rem;}
+.modal-backdrop.open{display:flex;}
+.modal-box{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border-glass);border-radius:16px;padding:1.6rem;}
+.modal-box h3{font-family:var(--font-head);font-size:1.05rem;margin-bottom:1rem;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:.78rem;color:var(--text-dim);margin-bottom:.4rem;font-family:var(--font-head);}
+.field select, .field input[type=text]{width:100%;padding:.7rem .9rem;border-radius:10px;border:1px solid var(--border-glass);background:rgba(255,255,255,.03);color:var(--text);font-family:var(--font-body);font-size:.9rem;}
+.modal-actions{display:flex;gap:.7rem;justify-content:flex-end;margin-top:1.4rem;}
+</style>
+</head>
+<body>
+
+<header class="solid" id="header">
+  <a href="admin-dashboard.html" class="logo"><span class="dot">🤖</span> St Eric Robotics — Admin</a>
+  <div class="nav-actions">
+    <a href="admin-dashboard.html" class="btn btn-ghost" style="padding:.6rem 1.2rem;font-size:.82rem;">← Back to Dashboard</a>
+  </div>
+</header>
+
+<div class="editor-header">
+  <div>
+    <h1 id="projectTitle">Slide Editor</h1>
+    <div class="sub" id="projectSub">Loading project…</div>
+  </div>
+</div>
+
+<div class="editor-wrap">
+  <div class="help-note">
+    <b>How this works:</b> add slide images below, then click a slide to select it. Click-and-drag anywhere on the image to draw an invisible button — you'll be asked what it should do (go home, scroll to top, jump to contact, open a project, or open any link). Visitors won't see the box outline, only you do here.
+  </div>
+
+  <div class="slide-strip" id="slideStrip"></div>
+  <input type="file" id="slideFileInput" accept="image/*" style="display:none;">
+
+  <div class="editor-canvas" id="editorCanvas">
+    <div class="empty-canvas" id="emptyCanvas">Add a slide image above to get started.</div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box">
+    <h3>What should this button do?</h3>
+    <div class="field">
+      <label>Label (for you only — not shown to visitors)</label>
+      <input type="text" id="btnLabel" placeholder="e.g. Go to contact">
+    </div>
+    <div class="field">
+      <label>Action</label>
+      <select id="btnAction">
+        <option value="home">Go to Home</option>
+        <option value="scroll_top">Scroll to top</option>
+        <option value="contact">Jump to Contact / Follow Us</option>
+        <option value="project_link">Open another project</option>
+        <option value="url">Open a link (WhatsApp, YouTube, any URL)</option>
+      </select>
+    </div>
+    <div class="field" id="projectPickerField" style="display:none;">
+      <label>Which project?</label>
+      <select id="btnProjectPicker"></select>
+    </div>
+    <div class="field" id="urlField" style="display:none;">
+      <label>URL</label>
+      <input type="text" id="btnUrl" placeholder="https://wa.me/... or https://youtube.com/...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="modalSave">Save Button</button>
+    </div>
+  </div>
+</div>
+
+<script src="supabase-config.js"></script>
+<script src="r2-config.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const SLUG = params.get('slug');
+let PROJECT = null;
+let SLIDES = [];       // [{id, image_url, sort_order, buttons:[...]}]
+let activeSlideId = null;
+let pendingBox = null; // {xPct,yPct,wPct,hPct} awaiting modal save
+
+function withTimeout(promise, ms = 10000){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out.')), ms))
+  ]);
+}
+
+(async ()=>{
+  if(!SLUG){ document.getElementById('projectSub').textContent = 'No project specified.'; return; }
+  try{
+    const { data:{ session } } = await withTimeout(supabaseClient.auth.getSession());
+    if(!session){ window.location.href = 'admin-login.html'; return; }
+  } catch(err){
+    document.getElementById('projectSub').textContent = "Couldn't verify your session: " + err.message;
+    return;
+  }
+  supabaseClient.auth.onAuthStateChange((event)=>{ if(event === 'SIGNED_OUT') window.location.href = 'admin-login.html'; });
+
+  const { data: proj, error: pErr } = await supabaseClient.from('projects').select('*').eq('slug', SLUG).single();
+  if(pErr || !proj){ document.getElementById('projectSub').textContent = 'Project not found.'; return; }
+  PROJECT = proj;
+  document.getElementById('projectTitle').textContent = 'Slide Editor — ' + proj.title;
+  document.getElementById('projectSub').textContent = 'Manage the horizontal slides and clickable buttons shown on this project\'s page.';
+
+  await loadProjectPicker();
+  await loadSlides();
+})();
+
+async function loadProjectPicker(){
+  const { data } = await supabaseClient.from('projects').select('id,slug,title').order('title');
+  const sel = document.getElementById('btnProjectPicker');
+  sel.innerHTML = (data||[]).map(p=>`<option value="${p.slug}">${p.title}</option>`).join('');
+}
+
+async function loadSlides(){
+  const { data: slides, error } = await supabaseClient
+    .from('project_slides').select('*').eq('project_id', PROJECT.id).order('sort_order');
+  if(error){ console.error(error); return; }
+  SLIDES = [];
+  for(const s of (slides||[])){
+    const { data: buttons } = await supabaseClient
+      .from('project_slide_buttons').select('*').eq('slide_id', s.id);
+    SLIDES.push({...s, buttons: buttons || []});
+  }
+  if(!activeSlideId && SLIDES.length) activeSlideId = SLIDES[0].id;
+  renderStrip();
+  renderCanvas();
+}
+
+function renderStrip(){
+  const strip = document.getElementById('slideStrip');
+  strip.innerHTML = '';
+  SLIDES.forEach((s, i)=>{
+    const el = document.createElement('div');
+    el.className = 'slide-thumb' + (s.id === activeSlideId ? ' active' : '');
+    el.style.backgroundImage = `url('${s.image_url}')`;
+    el.innerHTML = `<span class="num">${i+1}</span><button class="del" title="Delete slide">✕</button>`;
+    el.addEventListener('click', (e)=>{ if(e.target.classList.contains('del')) return; activeSlideId = s.id; renderStrip(); renderCanvas(); });
+    el.querySelector('.del').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this slide and its buttons?')) return;
+      await supabaseClient.from('project_slides').delete().eq('id', s.id);
+      if(activeSlideId === s.id) activeSlideId = null;
+      loadSlides();
+    });
+    strip.appendChild(el);
+  });
+  const add = document.createElement('div');
+  add.className = 'slide-add';
+  add.textContent = '+';
+  add.addEventListener('click', ()=>document.getElementById('slideFileInput').click());
+  strip.appendChild(add);
+}
+
+document.getElementById('slideFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  try{
+    const url = await uploadFile(file, `projects/${PROJECT.slug}/slides`);
+    const { error } = await supabaseClient.from('project_slides').insert({
+      project_id: PROJECT.id, image_url: url, sort_order: SLIDES.length
+    });
+    if(error) throw error;
+    loadSlides();
+  } catch(err){
+    alert('Upload failed: ' + err.message);
+  }
+});
+
+async function uploadFile(file, pathPrefix){
+  if(!R2_WORKER_URL || R2_WORKER_URL.includes('YOUR-')){
+    throw new Error('r2-config.js still has a placeholder Worker URL.');
+  }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if(!session) throw new Error('Your session expired — please log in again.');
+  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-File-Name': file.name,
+      'X-Folder': pathPrefix,
+    },
+    body: file,
+  });
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error(t || `Upload failed (${res.status})`); }
+  const { url } = await res.json();
+  return url;
+}
+
+/* ---------------- canvas: image + hotspot boxes + click-drag drawing ---------------- */
+const canvas = document.getElementById('editorCanvas');
+
+function renderCanvas(){
+  const slide = SLIDES.find(s => s.id === activeSlideId);
+  if(!slide){
+    canvas.innerHTML = `<div class="empty-canvas" id="emptyCanvas">Add a slide image above to get started.</div>`;
+    return;
+  }
+  canvas.innerHTML = `<img src="${slide.image_url}" draggable="false" id="canvasImg">`;
+  slide.buttons.forEach(b=>{
+    const box = document.createElement('div');
+    box.className = 'hotspot-box';
+    box.style.left = b.x + '%'; box.style.top = b.y + '%'; box.style.width = b.w + '%'; box.style.height = b.h + '%';
+    box.innerHTML = `<button class="del" title="Delete button">✕</button><span class="tag">${labelFor(b)}</span>`;
+    box.querySelector('.del').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      await supabaseClient.from('project_slide_buttons').delete().eq('id', b.id);
+      loadSlides();
+    });
+    canvas.appendChild(box);
+  });
+  attachDrawing(slide);
+}
+
+function labelFor(b){
+  const map = {home:'Home', scroll_top:'Scroll Top', contact:'Contact', project_link:'→ '+(b.action_value||'project'), url:'Link'};
+  return b.label || map[b.action_type] || 'Button';
+}
+
+function attachDrawing(slide){
+  let startX, startY, dragBox = null;
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('touchstart', onDown, {passive:true});
+
+  function onDown(e){
+    if(e.target.closest('.hotspot-box')) return; // don't start a new box on top of an existing one
+    const rect = canvas.getBoundingClientRect();
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX - rect.left;
+    startY = point.clientY - rect.top;
+    dragBox = document.createElement('div');
+    dragBox.className = 'drawing-box';
+    dragBox.style.left = startX + 'px'; dragBox.style.top = startY + 'px';
+    canvas.appendChild(dragBox);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, {passive:true});
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
+  }
+  function onMove(e){
+    if(!dragBox) return;
+    const rect = canvas.getBoundingClientRect();
+    const point = e.touches ? e.touches[0] : e;
+    const curX = point.clientX - rect.left, curY = point.clientY - rect.top;
+    const x = Math.min(startX, curX), y = Math.min(startY, curY);
+    const w = Math.abs(curX - startX), h = Math.abs(curY - startY);
+    dragBox.style.left = x+'px'; dragBox.style.top = y+'px'; dragBox.style.width = w+'px'; dragBox.style.height = h+'px';
+  }
+  function onUp(e){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchend', onUp);
+    if(!dragBox) return;
+    const rect = canvas.getBoundingClientRect();
+    const w = parseFloat(dragBox.style.width)||0, h = parseFloat(dragBox.style.height)||0;
+    if(w < 12 || h < 12){ dragBox.remove(); dragBox = null; return; } // too small = probably a stray click
+    pendingBox = {
+      x: (parseFloat(dragBox.style.left)/rect.width)*100,
+      y: (parseFloat(dragBox.style.top)/rect.height)*100,
+      w: (w/rect.width)*100,
+      h: (h/rect.height)*100,
+      slideId: slide.id
+    };
+    dragBox.remove();
+    dragBox = null;
+    openModal();
+  }
+}
+
+/* ---------------- modal ---------------- */
+const modalBackdrop = document.getElementById('modalBackdrop');
+const btnAction = document.getElementById('btnAction');
+btnAction.addEventListener('change', ()=>{
+  document.getElementById('projectPickerField').style.display = btnAction.value === 'project_link' ? 'block' : 'none';
+  document.getElementById('urlField').style.display = btnAction.value === 'url' ? 'block' : 'none';
+});
+function openModal(){
+  document.getElementById('btnLabel').value = '';
+  btnAction.value = 'home';
+  document.getElementById('btnUrl').value = '';
+  document.getElementById('projectPickerField').style.display = 'none';
+  document.getElementById('urlField').style.display = 'none';
+  modalBackdrop.classList.add('open');
+}
+document.getElementById('modalCancel').addEventListener('click', ()=>{ modalBackdrop.classList.remove('open'); pendingBox = null; renderCanvas(); });
+document.getElementById('modalSave').addEventListener('click', async ()=>{
+  if(!pendingBox) return;
+  const actionType = btnAction.value;
+  const actionValue = actionType === 'project_link' ? document.getElementById('btnProjectPicker').value
+                     : actionType === 'url' ? document.getElementById('btnUrl').value.trim()
+                     : null;
+  if(actionType === 'url' && !actionValue){ alert('Please enter a URL.'); return; }
+  const { error } = await supabaseClient.from('project_slide_buttons').insert({
+    slide_id: pendingBox.slideId,
+    x: pendingBox.x, y: pendingBox.y, w: pendingBox.w, h: pendingBox.h,
+    label: document.getElementById('btnLabel').value.trim() || null,
+    action_type: actionType,
+    action_value: actionValue
+  });
+  if(error){ alert('Could not save button: ' + error.message); return; }
+  pendingBox = null;
+  modalBackdrop.classList.remove('open');
+  loadSlides();
+});
+</script>
+</body>
+</html>
