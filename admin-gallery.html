@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery Manager — St Eric Robotics Club Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{padding-bottom:4rem;}
+.editor-header{padding:1.6rem 6vw 1rem;max-width:1100px;margin:0 auto;}
+.editor-header h1{font-family:var(--font-head);font-size:1.4rem;font-weight:700;}
+.editor-header .sub{color:var(--text-dim);font-size:.85rem;margin-top:.2rem;}
+.editor-wrap{max-width:1100px;margin:0 auto;padding:0 6vw;}
+.upload-card{background:var(--card-glass);border:1px solid var(--border-glass);border-radius:16px;padding:1.4rem;margin-bottom:2rem;}
+.upload-card h3{font-family:var(--font-head);font-size:1.05rem;margin-bottom:1rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:700px){.form-row{grid-template-columns:1fr;}}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:.78rem;color:var(--text-dim);margin-bottom:.4rem;font-family:var(--font-head);}
+.field input[type=text], .field textarea{width:100%;padding:.7rem .9rem;border-radius:10px;border:1px solid var(--border-glass);background:rgba(255,255,255,.03);color:var(--text);font-family:var(--font-body);font-size:.9rem;}
+.field input[type=file]{color:var(--text-dim);font-size:.85rem;}
+.hint{color:var(--text-faint);font-size:.72rem;margin-top:.3rem;}
+.items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;}
+.g-card{background:var(--card-glass);border:1px solid var(--border-glass);border-radius:14px;overflow:hidden;}
+.g-card .thumb{height:140px;background-size:cover;background-position:center;background-color:#000;position:relative;}
+.g-card .thumb video{width:100%;height:100%;object-fit:cover;}
+.g-card .body{padding:.9rem;}
+.g-card .cap{font-size:.85rem;color:var(--text);margin-bottom:.5rem;min-height:1.2em;}
+.g-card .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem;}
+.g-card .tags span{padding:.2rem .6rem;border-radius:100px;border:1px solid var(--border-glass);font-size:.65rem;color:var(--text-dim);}
+.g-card .link{font-size:.75rem;color:var(--primary);display:block;margin-bottom:.6rem;word-break:break-all;}
+.g-card .row-actions{display:flex;gap:.5rem;}
+</style>
+</head>
+<body>
+
+<header class="solid" id="header">
+  <a href="admin-dashboard.html" class="logo"><span class="dot">🤖</span> St Eric Robotics — Admin</a>
+  <div class="nav-actions">
+    <a href="admin-dashboard.html" class="btn btn-ghost" style="padding:.6rem 1.2rem;font-size:.82rem;">← Back to Dashboard</a>
+  </div>
+</header>
+
+<div class="editor-header">
+  <h1>Gallery Manager</h1>
+  <div class="sub">General club photos and clips — not tied to any project. Caption, tags and link are all optional.</div>
+</div>
+
+<div class="editor-wrap">
+  <div class="upload-card">
+    <h3 id="formTitle">Add to Gallery</h3>
+    <div class="field">
+      <label>Photo or video</label>
+      <input type="file" id="mediaFile" accept="image/*,video/*">
+      <div class="hint" id="editingHint" style="display:none;">Editing an existing item — leave this empty to keep its current media.</div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Caption (optional)</label>
+        <input type="text" id="captionInput" placeholder="e.g. Testing the new chassis">
+      </div>
+      <div class="field">
+        <label>Tags (optional, comma separated)</label>
+        <input type="text" id="tagsInput" placeholder="e.g. workshop, robostarters">
+      </div>
+    </div>
+    <div class="field">
+      <label>Link (optional)</label>
+      <input type="text" id="linkInput" placeholder="https://instagram.com/... or https://wa.me/...">
+    </div>
+    <div style="display:flex;gap:.7rem;">
+      <button class="btn btn-primary btn-sm" id="saveBtn">Add to Gallery</button>
+      <button class="btn btn-ghost btn-sm" id="cancelEditBtn" style="display:none;">Cancel edit</button>
+    </div>
+  </div>
+
+  <div class="items-grid" id="itemsGrid"><div class="empty-state">Loading…</div></div>
+</div>
+
+<script src="supabase-config.js"></script>
+<script src="r2-config.js"></script>
+<script>
+let ITEMS = [];
+let editingId = null;
+
+(async ()=>{
+  try{
+    const { data:{ session } } = await supabaseClient.auth.getSession();
+    if(!session){ window.location.href = 'admin-login.html'; return; }
+  } catch(err){
+    document.getElementById('itemsGrid').innerHTML = `<div class="empty-state">Couldn't verify your session.</div>`;
+    return;
+  }
+  supabaseClient.auth.onAuthStateChange((event)=>{ if(event === 'SIGNED_OUT') window.location.href = 'admin-login.html'; });
+  loadItems();
+})();
+
+async function loadItems(){
+  const { data, error } = await supabaseClient.from('gallery_items').select('*').order('created_at', {ascending:false});
+  const grid = document.getElementById('itemsGrid');
+  if(error){ grid.innerHTML = `<div class="empty-state">Couldn't load the gallery.</div>`; return; }
+  ITEMS = data || [];
+  if(!ITEMS.length){ grid.innerHTML = `<div class="empty-state">Nothing uploaded yet.</div>`; return; }
+  grid.innerHTML = '';
+  ITEMS.forEach(item=>{
+    const card = document.createElement('div');
+    card.className = 'g-card';
+    const thumb = item.media_type === 'video'
+      ? `<div class="thumb"><video src="${item.media_url}" muted></video></div>`
+      : `<div class="thumb" style="background-image:url('${item.media_url}')"></div>`;
+    const tagsHtml = (item.tags && item.tags.length) ? `<div class="tags">${item.tags.map(t=>`<span>${t}</span>`).join('')}</div>` : '';
+    const linkHtml = item.link_url ? `<a class="link" href="${item.link_url}" target="_blank" rel="noopener">${item.link_url}</a>` : '';
+    card.innerHTML = `${thumb}<div class="body">
+      <div class="cap">${item.caption || '<span style=\"color:var(--text-faint);\">No caption</span>'}</div>
+      ${tagsHtml}${linkHtml}
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-action="edit">Edit</button>
+        <button class="btn btn-danger btn-sm" data-action="delete">Delete</button>
+      </div>
+    </div>`;
+    card.querySelector('[data-action="edit"]').addEventListener('click', ()=>startEdit(item));
+    card.querySelector('[data-action="delete"]').addEventListener('click', ()=>deleteItem(item.id));
+    grid.appendChild(card);
+  });
+}
+
+function startEdit(item){
+  editingId = item.id;
+  document.getElementById('formTitle').textContent = 'Edit Gallery Item';
+  document.getElementById('captionInput').value = item.caption || '';
+  document.getElementById('tagsInput').value = (item.tags||[]).join(', ');
+  document.getElementById('linkInput').value = item.link_url || '';
+  document.getElementById('saveBtn').textContent = 'Save Changes';
+  document.getElementById('cancelEditBtn').style.display = 'inline-flex';
+  document.getElementById('editingHint').style.display = 'block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function resetForm(){
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'Add to Gallery';
+  document.getElementById('mediaFile').value = '';
+  document.getElementById('captionInput').value = '';
+  document.getElementById('tagsInput').value = '';
+  document.getElementById('linkInput').value = '';
+  document.getElementById('saveBtn').textContent = 'Add to Gallery';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('editingHint').style.display = 'none';
+}
+document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+async function deleteItem(id){
+  if(!confirm('Delete this gallery item?')) return;
+  await supabaseClient.from('gallery_items').delete().eq('id', id);
+  loadItems();
+}
+
+async function uploadFile(file, pathPrefix){
+  if(!R2_WORKER_URL || R2_WORKER_URL.includes('YOUR-')){
+    throw new Error('r2-config.js still has a placeholder Worker URL.');
+  }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if(!session) throw new Error('Your session expired — please log in again.');
+  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-File-Name': file.name,
+      'X-Folder': pathPrefix,
+    },
+    body: file,
+  });
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error(t || `Upload failed (${res.status})`); }
+  const { url } = await res.json();
+  return url;
+}
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('saveBtn');
+  const file = document.getElementById('mediaFile').files[0];
+  const caption = document.getElementById('captionInput').value.trim() || null;
+  const tags = document.getElementById('tagsInput').value.trim();
+  const tagsArr = tags ? tags.split(',').map(t=>t.trim()).filter(Boolean) : null;
+  const link = document.getElementById('linkInput').value.trim() || null;
+
+  if(!editingId && !file){ alert('Please choose a photo or video to upload.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try{
+    if(editingId){
+      const patch = { caption, tags: tagsArr, link_url: link };
+      if(file){
+        patch.media_url = await uploadFile(file, 'gallery');
+        patch.media_type = file.type.startsWith('video/') ? 'video' : 'image';
+      }
+      const { error } = await supabaseClient.from('gallery_items').update(patch).eq('id', editingId);
+      if(error) throw error;
+    } else {
+      const media_url = await uploadFile(file, 'gallery');
+      const media_type = file.type.startsWith('video/') ? 'video' : 'image';
+      const { error } = await supabaseClient.from('gallery_items').insert({ media_url, media_type, caption, tags: tagsArr, link_url: link });
+      if(error) throw error;
+    }
+    resetForm();
+    loadItems();
+  } catch(err){
+    alert('Could not save: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = editingId ? 'Save Changes' : 'Add to Gallery';
+  }
+});
+</script>
+</body>
+</html>
