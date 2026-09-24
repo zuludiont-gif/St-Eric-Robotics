@@ -1,0 +1,17 @@
+name = "steric-robotics-media"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Binds this Worker to your R2 bucket under the name MEDIA_BUCKET,
+# which is what worker.js refers to as env.MEDIA_BUCKET.
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "steric-robotics-media"
+
+# Plain vars are fine here — SUPABASE_URL and the anon key are both
+# meant to be public (the anon key is already embedded in the site's
+# supabase-config.js). Nothing secret lives in this file.
+[vars]
+SUPABASE_URL = "https://hpnizjlclivfpjmqphes.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwbml6amxjbGl2ZnBqbXFwaGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NzQxMjcsImV4cCI6MjEwMjQ1MDEyN30.NKmLE9tZgpwQTO6-_g8W55xeQaXrCBOH4Ui39pfZp1c"
+R2_PUBLIC_BASE = "https://pub-6937844a3d744fd7909830f79e7d83d4.r2.dev"
