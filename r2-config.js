@@ -6,4 +6,4 @@
    Storage for images and videos — the database (projects,
    project_media, build_logs) still lives in Supabase either way.
    ========================================================= */
-const R2_WORKER_URL = "https://YOUR-WORKER-SUBDOMAIN.workers.dev";
+const R2_WORKER_URL = "https://steric-robotics-media.joydeewrkrrobtics.workers.dev";
