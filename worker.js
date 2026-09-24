@@ -12,7 +12,7 @@
  */
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*', // tighten to your real site domain once deployed
+  'Access-Control-Allow-Origin': 'https://www.st-eric-robotics.co.zw', // tighten to your real site domain once deployed
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, X-Folder',
 };
